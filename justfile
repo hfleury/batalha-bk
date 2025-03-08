@@ -2,7 +2,7 @@ setup:
     chmod +x ./scripts/setup.sh && ./scripts/setup.sh
 
 start:
-    poetry run uvicorn main:app --reload --port 8000
+    poetry run uvicorn src.main:app --reload --port 8000
 
 test:
     poetry run pytest
