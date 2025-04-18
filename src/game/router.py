@@ -7,7 +7,7 @@ router = APIRouter()
 
 
 @router.websocket("/ws/connect")
-async def websocket_connection(websocket: WebSocket):
+async def websocket_connection(websocket: WebSocket) -> None:
     """
     Handles Websocket connections
     """

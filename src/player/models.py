@@ -17,7 +17,7 @@ class Player:
         self.player_id = player_id
         self.websocket = websocket
 
-    async def send_message(self, message: str):
+    async def send_message(self, message: str) -> None:
         """
         Sends a text message to the player's WebSocket connection
 
@@ -30,11 +30,11 @@ class Player:
             print(f"Error sending message to Player {self.player_id}: {e}")
             raise
 
-    async def close_connection(self):
+    async def close_connection(self) -> None:
         """
         Closes the Player's WebSocket connection.
         """
         await self.websocket.close()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Player(id={self.player_id})"

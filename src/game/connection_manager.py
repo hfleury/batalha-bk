@@ -10,7 +10,7 @@ class ConnectionManager:
     broadcast messages.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the ConnectionManager(Constructor)
         """
@@ -34,7 +34,7 @@ class ConnectionManager:
             self.next_player_id += 1
             return id_to_return
 
-    def add_player(self, player: Player):
+    def add_player(self, player: Player) -> None:
         """
         Adds a player to the connection ConnectionManager
 
@@ -43,7 +43,7 @@ class ConnectionManager:
         """
         self.connected_players[player.player_id] = player
 
-    def remove_player(self, player_id: int):
+    def remove_player(self, player_id: int) -> None:
         """
         Remove the player from the connection
 
@@ -62,7 +62,9 @@ class ConnectionManager:
         """
         return self.connected_players.get(player_id)
 
-    async def broadcast(self, message: str, excluded_player_id: int | None = None):
+    async def broadcast(
+        self, message: str, excluded_player_id: int | None = None
+    ) -> None:
         """
         Sends a message to all connected player, optionally excluding one
 

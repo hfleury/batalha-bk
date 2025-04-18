@@ -15,7 +15,10 @@ start:
 
 ## Run tests
 test:
-    poetry run pytest
+    poetry run coverage run -p -m pytest tests/
+    poetry run coverage combine
+    poetry run coverage report -m
+
 
 ## Format code with Black and isort
 format:
