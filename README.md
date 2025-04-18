@@ -13,7 +13,7 @@ just help
 ```
 
 ### Setup
-Go to the root folder of the project and run the command below, it will create the environment and install all dependencies. 
+Go to the root folder of the project and run the command below, it will create the environment and install all dependencies.
 
 ```shell
 just setup
@@ -26,10 +26,10 @@ This command will run the server. You will be able to send a request to the API.
 just start
 ```
 
-If you access the address below you will see the JSON for the default URL
+To test the websocket send a message to 2 players access this URL in to different tabs
+https://piehost.com/websocket-tester
 
-http://localhost:8000
+In the WebSocket URL place
+ws://localhost:8000/ws/connect
 
-You can use Swagger to see and test each endpoint and its documentation.
-
-http://127.0.0.1:8000/docs
+Now send messages
