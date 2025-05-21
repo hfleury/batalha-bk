@@ -3,6 +3,7 @@ The backend for the game Naval Battle, version 1 is a monolithic using Python an
 
 ## Start
 To start have installed the JustFile program, [here is the link](https://github.com/casey/just)
+And have Poetry installed as well. [Poetry](https://python-poetry.org/)
 
 ## Justfile
 Used to run project-specific commands.
@@ -33,3 +34,10 @@ In the WebSocket URL place
 ws://localhost:8000/ws/connect
 
 Now send messages
+
+## Cache
+When the game is happening we will save all the actions on Redis for fast access.
+
+[What is Redis](https://redis.io/)
+
+[Server Cloud Redis](https://cloud.redis.io/#/databases)
