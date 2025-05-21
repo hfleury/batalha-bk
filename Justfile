@@ -11,11 +11,14 @@ setup:
 
 ## Start the FastAPI server
 start:
-    poetry run uvicorn src.main:app --reload --port 8000
+    poetry run fastapi dev src/main.py
 
 ## Run tests
 test:
-    poetry run pytest
+    poetry run coverage run -p -m pytest tests/
+    poetry run coverage combine
+    poetry run coverage report -m
+
 
 ## Format code with Black and isort
 format:
@@ -25,3 +28,6 @@ format:
 lint:
     poetry run flake8 src/ tests/
     poetry run mypy src/
+
+test1:
+    fastapi dev main.py
