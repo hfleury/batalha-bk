@@ -78,7 +78,8 @@ class ConnectionManager:
                     await player.send_message(message)
                 except RuntimeError:
                     print(
-                        f"Error sending message to Player {player_id} during broadcast. Removing player"
+                        f"Error sending message to Player {player_id} "
+                        "during broadcast. Removing player"
                     )
                     self.remove_player(player_id)
                     await player.close_connection()
