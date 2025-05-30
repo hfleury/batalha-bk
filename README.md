@@ -27,7 +27,7 @@ This command will run the server. You will be able to send a request to the API.
 just start
 ```
 
-To test the websocket send a message to 2 players access this URL in to different tabs
+To test the websocket access the URL below twice and send a message.
 https://piehost.com/websocket-tester
 
 In the WebSocket URL place

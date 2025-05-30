@@ -14,9 +14,9 @@ def test_Player_init():
     player_id = 1
     player = Player(player_id, mock_ws)
 
-    assert player.websocket is mock_ws, (
-        "Player.websocket shoulb be the same object as the provided mock"
-    )
+    assert (
+        player.websocket is mock_ws
+    ), "Player.websocket shoulb be the same object as the provided mock"
     assert player.player_id == player_id
 
 
