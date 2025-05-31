@@ -22,11 +22,12 @@ class ShipPlacement(BaseModel):
         ..., description="List of ships with their coordinates"
     )
 
-    @field_validator("ships", each_item=True)
-    def validate_ship_coordinates(cls, ship: List[str]) -> List[str]:
-        """Validate each ship's coordinates."""
-        if not all(is_valid_coordinate(coord) for coord in ship):
-            raise ValueError(
-                "Invalid ship coordinates. Must be in the format 'A1', 'B2', etc."
-            )
-        return ship
+    @field_validator("ships")
+    def validate_ship_coordinates(cls, ships: List[List[str]]) -> List[List[str]]:
+        """Validate all ships' coordinates."""
+        for ship in ships:
+            if not all(is_valid_coordinate(coord) for coord in ship):
+                raise ValueError(
+                    "Invalid ship coordinates. Must be in the format 'A1', 'B2', etc."
+                )
+        return ships
