@@ -41,3 +41,26 @@ When the game is happening we will save all the actions on Redis for fast access
 [What is Redis](https://redis.io/)
 
 [Server Cloud Redis](https://cloud.redis.io/#/databases)
+
+## Actions
+### Start the game
+Receive the game id and the players
+Example
+```json
+{"action":"start_game","game_id":1,"players":{"1":{"ship_id_1":["A1"],"ship_id_2":["B1","B2"],"ship_id_3":["C1","C2","C3"],"ship_id_4":["D1","D2","D3","D4"],"ship_id_5":["E1","E2","E3","E4","E5"]},"2":{"ship_id_1":["A5"],"ship_id_2":["B5","B6"],"ship_id_3":["C5","C6","C7"],"ship_id_4":["D5","D6","D7","D8"],"ship_id_5":["E5","E6","E7","E8","E9"]}}}
+```
+
+### Get game info
+Receive the information of the ships positions from a player based on game id
+
+```json
+{"action": "get_game_info","game_id": 1,"player_id": 1}
+```
+
+### Player shoot
+Receive the shoot a player did.
+
+```json
+{"action":"shoot","game_id":1,"player_id":1,"target":"B2"}
+```
+
