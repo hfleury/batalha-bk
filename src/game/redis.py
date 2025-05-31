@@ -1,5 +1,4 @@
 import json
-from typing import List
 import redis
 
 redis_client = redis.Redis(
@@ -11,7 +10,14 @@ redis_client = redis.Redis(
 )
 
 
-def save_player_board(player_id: int, ships: List[List[str]]) -> None:
-    key = f"player_board:{player_id}:board"
+def save_player_board(game_id: str, player_id: int, ships: dict[str, list[str]]) -> None:
+    key = f"game_id:{game_id}:player_board:{player_id}:board"
     value = json.dumps(ships)
     redis_client.set(key, value)
+
+def get_player_board(game_id: int, player_id: int) -> dict[str, list[str]]:
+    key = f"game_id:{game_id}:player_board:{player_id}:board"
+    value = redis_client.get(key)
+    if value is None:
+        return {}
+    return json.loads(value)
