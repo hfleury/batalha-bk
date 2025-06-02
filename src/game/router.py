@@ -59,10 +59,12 @@ async def websocket_connection(websocket: WebSocket) -> None:
                         )
                         await websocket.send_json(result)
                     else:
-                        await websocket.send_json({
-                            "status": "error",
-                            "message": "Missing game_id or player_id"
-                        })
+                        await websocket.send_json(
+                            {
+                                "status": "error",
+                                "message": "Missing game_id or player_id",
+                            }
+                        )
                 elif action == "shoot":
                     game_id = payload["game_id"]
                     player_id = payload["player_id"]
@@ -84,11 +86,12 @@ async def websocket_connection(websocket: WebSocket) -> None:
                                 "status": "hit",
                                 "target": target,
                                 "ship_id": ship_id,
-                                "sunk": is_sunk
+                                "sunk": is_sunk,
                             }
                             break
 
                     await websocket.send_json(hit_result)
+
                 else:
                     await connection_manager.broadcast(
                         f"Player {player_id} says: {data}",
@@ -110,9 +113,7 @@ async def websocket_connection(websocket: WebSocket) -> None:
 
 
 def place_ships(
-    game_id: str,
-    player_id: int,
-    ships: dict[str, list[str]]
+    game_id: str, player_id: int, ships: dict[str, list[str]]
 ) -> Dict[str, str]:
     """
     Receives and stores player's ship placements.
@@ -125,8 +126,7 @@ def place_ships(
 
 
 def start_game(
-    game_id: str,
-    players: dict[int, dict[str, list[str]]]
+    game_id: str, players: dict[int, dict[str, list[str]]]
 ) -> Dict[str, str]:
     """
     Initializes a new game state by saving each player's ship board.
