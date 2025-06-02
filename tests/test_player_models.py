@@ -1,12 +1,12 @@
 from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
-from _pytest.capture import capfd
+# removed capfd import, use fixture instead
 
 from src.player.models import Player
 
 
-def test_Player_init():
+def test_Player_init() -> None:
     """
     Test that the Player.__init__ method correctly initialize a new Player instance
     """
@@ -21,7 +21,7 @@ def test_Player_init():
 
 
 @pytest.mark.asyncio
-async def test_player_send_message_success():
+async def test_player_send_message_success() -> None:
     """
     Test the Player.send_message method to ensure it correctly calls
     the websocket.send_text method with the provided message
@@ -42,7 +42,7 @@ async def test_player_send_message_success():
 
 
 @pytest.mark.asyncio
-async def test_player_close_connection():
+async def test_player_close_connection() -> None:
     """
     Test the Palyer.close_connection method to ensure it correctly
     calls the websocket.close method.
@@ -58,8 +58,7 @@ async def test_player_close_connection():
 
 
 @pytest.mark.asyncio
-@pytest.fixture
-async def test_send_messagte_fail():
+async def test_send_messagte_fail(capfd: pytest.CaptureFixture[str]) -> None:
     """
     Test the Player.send_message method to ensure the RuntimeError is
     correctly handle and print the message
@@ -74,8 +73,9 @@ async def test_send_messagte_fail():
     with pytest.raises(RuntimeError, match="Simulate send error"):
         await player.send_message(tst_message)
 
-    captured = capfd.readouterr()
+    out, err = capfd.readouterr()
+    assert err == ""
     assert (
-        captured.out
+        out
         == f"Error sending message to Player {player_id}: Simulate send error"
     )
