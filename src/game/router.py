@@ -40,19 +40,23 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 if action == "place_ships":
                     game_id = payload.get("game_id")
                     ships = payload.get("ships", [])
-                    result = await place_ships(game_id, player_id, ships)
-                    await websocket.send_json(result)
+                    place_result: dict[str, str] = place_ships(
+                        game_id, player_id, ships
+                    )
+                    await websocket.send_json(place_result)
                 elif action == "start_game":
                     game_id = payload.get("game_id")
                     players = payload.get("players", {})
 
-                    result = start_game(game_id, players)
-                    await websocket.send_json(result)
+                    start_result = start_game(game_id, players)
+                    await websocket.send_json(start_result)
                 elif action == "get_game_info":
                     game_id = payload.get("game_id")
                     requested_player_id = payload.get("player_id")
                     if game_id is not None and requested_player_id is not None:
-                        result = redis_repo.get_player_board(game_id, requested_player_id)
+                        result: dict[str, list[str]] = redis_repo.get_player_board(
+                            game_id, requested_player_id
+                        )
                         await websocket.send_json(result)
                     else:
                         await websocket.send_json({
@@ -64,8 +68,8 @@ async def websocket_connection(websocket: WebSocket) -> None:
                     player_id = payload["player_id"]
                     target = payload["target"]
 
-                    opponent_id =  redis_repo.get_opponent_id(game_id, player_id)
-                    opponent_board =  redis_repo.get_player_board(game_id, opponent_id)
+                    opponent_id = redis_repo.get_opponent_id(game_id, player_id)
+                    opponent_board = redis_repo.get_player_board(game_id, opponent_id)
 
                     hit_result: dict[str, Any] = {"status": "miss", "target": target}
 
@@ -105,7 +109,11 @@ async def websocket_connection(websocket: WebSocket) -> None:
         )
 
 
-def place_ships(game_id: str, player_id: int, ships: dict[str, list[str]]) -> Dict[str, str]:
+def place_ships(
+    game_id: str,
+    player_id: int,
+    ships: dict[str, list[str]]
+) -> Dict[str, str]:
     """
     Receives and stores player's ship placements.
     """
@@ -115,7 +123,11 @@ def place_ships(game_id: str, player_id: int, ships: dict[str, list[str]]) -> Di
 
     return {"status": "OK", "message": f"Ships placed for player {player_id}"}
 
-def start_game(game_id: str, players: dict[int, dict[str, list[str]]]) -> Dict[str, str]:
+
+def start_game(
+    game_id: str,
+    players: dict[int, dict[str, list[str]]]
+) -> Dict[str, str]:
     """
     Initializes a new game state by saving each player's ship board.
 
