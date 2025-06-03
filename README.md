@@ -35,6 +35,14 @@ ws://localhost:8000/ws/connect
 
 Now send messages
 
+
+### Start server locally on Windows
+
+```powershell
+poetry env activate
+poetry run fastapi dev src/main.py
+```
+
 ## Cache
 When the game is happening we will save all the actions on Redis for fast access.
 
@@ -43,6 +51,13 @@ When the game is happening we will save all the actions on Redis for fast access
 [Server Cloud Redis](https://cloud.redis.io/#/databases)
 
 ## Actions
+### Join a queue
+Player join a queue looking for another player to start a game
+Example
+```json
+{ "action": "join_queue", "type_game":"casual", "player_id": 1 }
+```
+
 ### Start the game
 Receive the game id and the players
 Example
@@ -57,10 +72,5 @@ Receive the information of the ships positions from a player based on game id
 {"action": "get_game_info","game_id": 1,"player_id": 1}
 ```
 
-### Player shoot
-Receive the shoot a player did.
-
-```json
-{"action":"shoot","game_id":1,"player_id":1,"target":"B2"}
-```
+s
 

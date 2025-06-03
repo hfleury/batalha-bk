@@ -1,7 +1,8 @@
 from fastapi import WebSocket
+from src.core.interface.connection_protocol import ConnectionProtocol
 
 
-class Player:
+class WebSocketConnection(ConnectionProtocol):
     """
     Represents a player in the Websocket connection.
     """
@@ -37,4 +38,4 @@ class Player:
         await self.websocket.close()
 
     def __repr__(self) -> str:
-        return f"Player(id={self.player_id})"
+        return f"WebSocketConnection(player_id={self.player_id})"

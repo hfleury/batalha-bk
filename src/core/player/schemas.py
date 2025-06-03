@@ -6,9 +6,10 @@ from pydantic import BaseModel, Field, field_validator
 BOARD_SIZE = 15
 LETTERS = [chr(i) for i in range(ord("A"), ord("O") + 1)]
 
-#TODO validate if all ships are coming.
-#TODO get the player_id from the connection manager
-#TODO get the game_id from the connection manager
+# TODO validate if all ships are coming.
+# TODO get the player_id from the connection manager
+# TODO get the game_id from the connection manager
+
 
 def is_valid_coordinate(coord: str) -> bool:
     """Check if the coordinate is valid (e.g., 'A1', 'B2', etc.)."""

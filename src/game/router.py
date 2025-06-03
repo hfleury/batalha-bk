@@ -97,7 +97,9 @@ async def websocket_connection(websocket: WebSocket) -> None:
                         continue
 
                     opponent_id = redis_repo.get_opponent_id(game_id, shooter_id)
-                    opponent_board = redis_repo.get_player_board(game_id, opponent_id)
+                    opponent_board = await redis_repo.get_player_board(
+                        game_id, opponent_id
+                    )
 
                     if not opponent_board:
                         await websocket.send_json(
@@ -112,8 +114,12 @@ async def websocket_connection(websocket: WebSocket) -> None:
 
                     for ship_id, positions in opponent_board.items():
                         if target in positions:
-                            redis_repo.save_hit(game_id, opponent_id, ship_id, target)
-                            hits = redis_repo.get_player_hits(game_id, opponent_id)
+                            await redis_repo.save_hit(
+                                game_id, opponent_id, ship_id, target
+                            )
+                            hits = await redis_repo.get_player_hits(
+                                game_id, opponent_id
+                            )
                             is_sunk = set(hits.get(ship_id, [])) == set(positions)
 
                             hit_result = {
@@ -147,18 +153,18 @@ async def websocket_connection(websocket: WebSocket) -> None:
         )
 
 
-def place_ships(
+async def place_ships(
     game_id: str, player_id: int, ships: Dict[str, List[str]]
 ) -> Dict[str, str]:
     """
     Receives and stores player's ship placements.
     """
-    redis_repo.save_player_board(game_id, player_id, ships)
+    await redis_repo.save_player_board(game_id, player_id, ships)
     # TODO: trigger async DB persistence (message/event)
     return {"status": "OK", "message": f"Ships placed for player {player_id}"}
 
 
-def start_game(
+async def start_game(
     game_id: str, players: Dict[str, Dict[str, List[str]]]
 ) -> Dict[str, str]:
     """
@@ -166,7 +172,7 @@ def start_game(
     """
     for player_id_str, ships in players.items():
         player_id = int(player_id_str)
-        redis_repo.save_player_board(game_id, player_id, ships)
+        await redis_repo.save_player_board(game_id, player_id, ships)
         # TODO: Save game start metadata in Redis/db
 
     return {"status": "OK", "message": f"Game {game_id} started"}
