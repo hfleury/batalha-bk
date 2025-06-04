@@ -8,7 +8,13 @@ class ConnectionProtocol(Protocol):
     """
 
     async def send_message(self, message: str) -> None:
+        """Send a message using websockets
+
+        Args:
+            message (str): the message to be send
+        """
         pass
 
     async def close_connection(self) -> None:
+        """Close the connection"""
         pass

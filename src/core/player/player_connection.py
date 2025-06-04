@@ -1,9 +1,10 @@
 from src.core.interface.connection_protocol import ConnectionProtocol
+from src.core.domain.player import Player
 
 
-class Player:
-    def __init__(self, player_id: int, connection: ConnectionProtocol) -> None:
-        self.player_id = player_id
+class PlayerConnection:
+    def __init__(self, player: Player, connection: ConnectionProtocol) -> None:
+        self.player = player
         self.connection = connection
 
     async def send_message(self, message: str) -> None:

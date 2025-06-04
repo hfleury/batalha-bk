@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 
-from src.game import router
+from src.api.websocket_handler import router
 
 app = FastAPI()
-app.include_router(router.router)
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
