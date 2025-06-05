@@ -51,19 +51,167 @@ When the game is happening we will save all the actions on Redis for fast access
 [Server Cloud Redis](https://cloud.redis.io/#/databases)
 
 ## Actions
-### Join a queue
-Player join a queue looking for another player to start a game
-Example
+### Find Game Session
+This action allows a player to join the matchmaking queue and either start a new game if an opponent is available, or wait for another player.
+
+**How it works:**
+- If another player is already waiting in the queue, a new game session is created and both players are matched.
+- If no opponent is available, the player is added to the queue and waits for another player to join.
+
+**Request Example**
 ```json
-{ "action": "join_queue", "type_game":"casual", "player_id": 1 }
+{
+  "action": "find_game_session",
+  "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc"
+}
+```
+*Note: `player_id` should be a UUID string.*
+
+**Possible Responses**
+
+- **If a game session is created:**
+    ```json
+    {
+      "status": "OK",
+      "message": "Game session created",
+      "action": "res_find_game_session",
+      "data": {
+        "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0",
+        "start_datetime": 1717600000,
+        "end_datetime": 0,
+        "players": {
+          "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc": {},
+          "a1b2c3d4-5678-90ab-cdef-1234567890ab": {}
+        }
+      }
+    }
+    ```
+
+- **If waiting for another player:**
+    ```json
+    {
+      "status": "OK",
+      "message": "Waiting for another player",
+      "action": "res_find_game_session",
+      "data": ""
+    }
+    ```
+
+
+### Place Ships
+This action allows a player to submit their ship placements for a game. The server will validate the ships and store them for the player.
+
+**How it works:**
+- The player sends a request with the game ID, their player ID, and a list of ships with their positions.
+- The server validates the ship placements.
+- If the placements are valid, the server stores them and responds with success.
+- If the placements are invalid, an error message is returned.
+
+**Request Example**
+```json
+{
+  "action": "place_ships",
+  "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0",
+  "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
+  "ships": [
+    {"type": "battleship", "positions": ["A1", "A2", "A3", "A4"]},
+    {"type": "destroyer", "positions": ["B1", "B2", "B3"]}
+  ]
+}
 ```
 
-### Start the game
-Receive the game id and the players
-Example
+**Possible Responses**
+
+- **Success:**
+    ```json
+    {
+      "status": "OK",
+      "message": "Ships placed for player b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
+      "action": "resp_place_ships",
+      "data": ""
+    }
+    ```
+
+- **Invalid ship placement:**
+    ```json
+    {
+      "status": "error",
+      "message": "Invalid ship positions: ships overlap",
+      "action": "resp_place_ships",
+      "data": ""
+    }
+    ```
+
+
+### Shoot
+This action allows a player to fire at a target cell on the opponent's board.
+
+**How it works:**
+- The player sends a request with the game ID, their player ID, and the target cell (e.g., "B4").
+- If there is no opponent or the opponent's board is not found, an error is returned.
+- If the target cell matches a ship position, it is recorded as a hit. The response includes whether the ship was sunk.
+- If the target cell does not match any ship, the response indicates a miss.
+
+**Request Example**
 ```json
-{"action":"start_game","game_id":1,"players":{"1":{"ship_id_1":["A1"],"ship_id_2":["B1","B2"],"ship_id_3":["C1","C2","C3"],"ship_id_4":["D1","D2","D3","D4"],"ship_id_5":["E1","E2","E3","E4","E5"]},"2":{"ship_id_1":["A5"],"ship_id_2":["B5","B6"],"ship_id_3":["C5","C6","C7"],"ship_id_4":["D5","D6","D7","D8"],"ship_id_5":["E5","E6","E7","E8","E9"]}}}
+{
+  "action": "shoot",
+  "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0",
+  "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
+  "target": "B4"
+}
 ```
+
+**Possible Responses**
+
+- **Hit (and possibly sunk):**
+    ```json
+    {
+      "status": "OK",
+      "message": "the shoot of the playerb7e6a1c2-3d4f-4e5a-8b9c-123456789abc hit the target:B4",
+      "action": "resp_shoot",
+      "data": {
+        "status": "hit",
+        "target": "B4",
+        "ship_id": "ship_id_2",
+        "sunk": false
+      }
+    }
+    ```
+
+- **Miss:**
+    ```json
+    {
+      "status": "OK",
+      "message": "the shoot of the playerb7e6a1c2-3d4f-4e5a-8b9c-123456789abc on target:B4",
+      "action": "resp_shoot",
+      "data": {
+        "status": "miss",
+        "target": "B4"
+      }
+    }
+    ```
+
+- **No opponent found:**
+    ```json
+    {
+      "status": "error",
+      "message": "No opponent found",
+      "action": "resp_shoot",
+      "data": ""
+    }
+    ```
+
+- **Opponent board not found:**
+    ```json
+    {
+      "status": "error",
+      "message": "Opponentb7e6a1c2-3d4f-4e5a-8b9c-123456789abc board not found of game:e2c56db5-dffb-48d2-b060-d0f5a71096e0",
+      "action": "resp_shoot",
+      "data": ""
+    }
+    ```
+
 
 ### Get game info
 Receive the information of the ships positions from a player based on game id
@@ -72,5 +220,8 @@ Receive the information of the ships positions from a player based on game id
 {"action": "get_game_info","game_id": 1,"player_id": 1}
 ```
 
-s
+
+
+
+
 

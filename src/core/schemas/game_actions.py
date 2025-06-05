@@ -21,3 +21,7 @@ class ShootRequest(BaseModel):
             return uuid.UUID(str(v))
         except ValueError:
             raise ValueError("Invalid UUID format")
+
+
+class FindGameRequest(BaseModel):
+    player_id: uuid.UUID

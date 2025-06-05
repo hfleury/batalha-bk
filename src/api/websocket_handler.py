@@ -40,7 +40,7 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 action = payload.get("action")
 
                 response = await game_service.handle_action(action, payload, player)
-                await websocket.send_json(response)
+                await websocket.send_json(response.to_dict())
 
             except json.JSONDecodeError:
                 await websocket.send_json(
