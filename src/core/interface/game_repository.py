@@ -3,6 +3,7 @@ import uuid
 from typing import Any
 from src.core.domain.player import Player
 from src.core.domain.ship import Ship
+from src.core.domain.game import GameSession
 
 
 class GameRepository(ABC):
@@ -48,7 +49,7 @@ class GameRepository(ABC):
         pass
 
     @abstractmethod
-    async def pop_from_queue(self, queue_name: str) -> str | None:
+    async def pop_from_queue(self, queue_name: str) -> uuid.UUID | None:
         pass
 
     @abstractmethod
@@ -58,7 +59,6 @@ class GameRepository(ABC):
     @abstractmethod
     async def save_game_to_redis(
         self,
-        game_id: uuid.UUID,
-        players_data: dict[str, dict[str, dict[str, list[str]]]],
+        game: GameSession,
     ) -> None:
         pass

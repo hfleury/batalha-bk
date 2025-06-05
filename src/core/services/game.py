@@ -2,13 +2,19 @@ from typing import Any
 from src.core.interface.game_repository import GameRepository
 from src.core.domain.player import Player
 from src.core.domain.ship import Ship
+from src.core.domain.game import GameSession, PlayerBoard
 from src.core.serializer.ship import parse_ships
 from src.core.schemas.place_ships import StandardResponse, ShipPlacementRequest
-from src.core.schemas.game_actions import StartGameRequest, ShootRequest
+from src.core.schemas.game_actions import (
+    StartGameRequest,
+    ShootRequest,
+    FindGameRequest,
+)
 from src.core.schemas.player_info import PlayerInfoRequest
 from pydantic import ValidationError
 import uuid
 import logging
+import time
 
 # TODO have here just the GameService logic, move the handler to another place
 # TODO Add logger where it is need.
@@ -32,6 +38,7 @@ class GameService:
                     ships=payload["players"][str(player.id)],
                 )
             except (KeyError, ValidationError) as e:
+                logger.error(f"{action} validation error: {e}")
                 return StandardResponse(
                     status="error",
                     message=f"Invalid request payload: {e}",
@@ -48,6 +55,7 @@ class GameService:
                     players=payload["players"],
                 )
             except (KeyError, ValidationError) as e:
+                logger.error(f"{action} validation error: {e}")
                 return StandardResponse(
                     status="error",
                     message=f"Invalid request payload: {e}",
@@ -63,6 +71,7 @@ class GameService:
                     player_id=payload["player_id"],
                 )
             except (KeyError, ValidationError) as e:
+                logger.error(f"{action} validation error: {e}")
                 return StandardResponse(
                     status="error",
                     message=f"Invalid request payload: {e}",
@@ -79,6 +88,7 @@ class GameService:
                     target=payload["target"],
                 )
             except (KeyError, ValidationError) as e:
+                logger.error(f"{action} validation error: {e}")
                 return StandardResponse(
                     status="error",
                     message=f"Invalid request payload: {e}",
@@ -86,6 +96,21 @@ class GameService:
                     data="",
                 )
             return await self.shoot(req_shoot)
+
+        elif action == "find_game_session":
+            try:
+                req_find_game_session = FindGameRequest(
+                    player_id=uuid.UUID(payload["player_id"]),
+                )
+            except (KeyError, ValidationError) as e:
+                logger.error(f"{action} validation error: {e}")
+                return StandardResponse(
+                    status="error",
+                    message=f"Invalid request payload: {e}",
+                    action="resp_find_game_session",
+                    data="",
+                )
+            return await self.find_game_session(req_find_game_session)
 
         else:
             return StandardResponse(
@@ -101,6 +126,7 @@ class GameService:
         try:
             ships: list[Ship] = parse_ships(request.ships)
         except ValueError as e:
+            logger.error(f" place_ship error: {e}")
             return StandardResponse(
                 status="error", message=str(e), action="resp_place_ships", data=""
             )
@@ -235,4 +261,41 @@ class GameService:
             " on target:{request.target}",
             action="resp_shoot",
             data={"status": "miss", "target": request.target},
+        )
+
+    async def find_game_session(self, player: FindGameRequest) -> StandardResponse:
+        queue_key = "matchmaking:queue"
+
+        opponent_player_id = await self.repository.pop_from_queue(queue_key)
+
+        if opponent_player_id:
+            game_id = uuid.uuid4()
+            now = int(time.time())
+
+            game_data = GameSession(
+                game_id=game_id,
+                start_datetime=now,
+                end_datetime=0,
+                players={
+                    opponent_player_id: PlayerBoard(),
+                    player.player_id: PlayerBoard(),
+                },
+            )
+
+            await self.repository.save_game_to_redis(game_data)
+
+            return StandardResponse(
+                status="OK",
+                message="Game session created",
+                action="res_find_game_session",
+                data=game_data,
+            )
+
+        # No player waiting, put current player in queue
+        await self.repository.push_to_queue(queue_key, player.player_id)
+        return StandardResponse(
+            status="OK",
+            message="Waiting for another player",
+            action="res_find_game_session",
+            data="",
         )
