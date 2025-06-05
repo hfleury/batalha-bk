@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Any
 
 
 class ShipPlacementRequest(BaseModel):
@@ -10,3 +11,5 @@ class ShipPlacementRequest(BaseModel):
 class StandardResponse(BaseModel):
     status: str
     message: str
+    action: str
+    data: Any

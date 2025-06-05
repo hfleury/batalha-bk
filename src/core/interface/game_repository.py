@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import uuid
 from typing import Any
 from src.core.domain.player import Player
 from src.core.domain.ship import Ship
@@ -20,28 +21,30 @@ class GameRepository(ABC):
 
     @abstractmethod
     async def get_player_board(
-        self, game_id: int, player: Player
+        self, game_id: uuid.UUID, player_id: uuid.UUID
     ) -> dict[str, list[str]]:
         pass
 
     @abstractmethod
-    async def get_opponent_id(self, game_id: int, player: Player) -> int:
+    async def get_opponent_id(
+        self, game_id: uuid.UUID, player: Player
+    ) -> uuid.UUID | None:
         pass
 
     @abstractmethod
     async def get_player_hits(
-        self, game_id: int, player: Player
+        self, game_id: uuid.UUID, player: uuid.UUID
     ) -> dict[str, list[str]]:
         pass
 
     @abstractmethod
     async def save_hit(
-        self, game_id: int, player: Player, ship_id: str, position: str
+        self, game_id: uuid.UUID, player: uuid.UUID, ship_id: str, position: str
     ) -> None:
         pass
 
     @abstractmethod
-    async def push_to_queue(self, queue_name: str, player: Player) -> None:
+    async def push_to_queue(self, queue_name: str, player: uuid.UUID) -> None:
         pass
 
     @abstractmethod
@@ -50,4 +53,12 @@ class GameRepository(ABC):
 
     @abstractmethod
     async def save_game_session(self, game_key: str, game_data: Any) -> None:
+        pass
+
+    @abstractmethod
+    async def save_game_to_redis(
+        self,
+        game_id: uuid.UUID,
+        players_data: dict[str, dict[str, dict[str, list[str]]]],
+    ) -> None:
         pass

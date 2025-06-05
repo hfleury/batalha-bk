@@ -1,8 +1,12 @@
 import json
+import uuid
+import time
 from typing import Any
 
 import redis.asyncio as aioredis
 from src.core.interface.game_repository import GameRepository
+from src.core.domain.player import Player
+from src.core.domain.ship import Ship
 
 
 class GameRedisRepository(GameRepository):
@@ -16,7 +20,7 @@ class GameRedisRepository(GameRepository):
         )
 
     async def save_player_board(
-        self, game_id: str, player_id: int, ships: dict[str, list[str]]
+        self, game_id: str, player: Player, ships: list[Ship]
     ) -> None:
         """Save the player's board ships positions
 
@@ -25,12 +29,12 @@ class GameRedisRepository(GameRepository):
             player_id (int): UUUID of the player
             ships (Dict[str, List[str]]): Dictionary of ships and their positions
         """
-        key = f"game_id:{game_id}:player_board:{player_id}:board"
+        key = f"game_id:{game_id}:player_board:{player.id}:board"
         value = json.dumps(ships)
         await self.redis_client.set(key, value)
 
     async def get_player_board(
-        self, game_id: int, player_id: int
+        self, game_id: uuid.UUID, player_id: uuid.UUID
     ) -> dict[str, list[str]]:
         key = f"game_id:{game_id}:player_board:{player_id}:board"
         value = await self.redis_client.get(key)
@@ -38,22 +42,37 @@ class GameRedisRepository(GameRepository):
             return {}
         return json.loads(value)
 
-    async def get_opponent_id(self, game_id: int, player_id: int) -> int:
-        return 2 if player_id == 1 else 1
+    async def get_opponent_id(
+        self, game_id: uuid.UUID, player: Player
+    ) -> uuid.UUID | None:
+        redis_key = f"game:{str(game_id)}"
+        data = await self.redis_client.get(redis_key)
+
+        if data is None:
+            return None
+
+        game_data = json.loads(data)
+        player_ids = list(game_data["players"].keys())
+
+        try:
+
+            return uuid.UUID(next(pid for pid in player_ids if pid != str(player.id)))
+        except StopIteration:
+            return None
 
     async def get_player_hits(
-        self, game_id: int, player_id: int
+        self, game_id: uuid.UUID, player: uuid.UUID
     ) -> dict[str, list[str]]:
-        key = f"game_id:{game_id}:player_board:{player_id}:hits"
+        key = f"game_id:{game_id}:player_board:{player}:hits"
         value = await self.redis_client.get(key)
         if value is None or not isinstance(value, (str, bytes, bytearray)):
             return {}
         return json.loads(value)
 
     async def save_hit(
-        self, game_id: int, player_id: int, ship_id: str, position: str
+        self, game_id: uuid.UUID, player: uuid.UUID, ship_id: str, position: str
     ) -> None:
-        key = f"game_id:{game_id}:player_board:{player_id}:hits"
+        key = f"game_id:{game_id}:player_board:{player}:hits"
         value = await self.redis_client.get(key)
 
         if value is None or not isinstance(value, (str, bytes, bytearray)):
@@ -68,8 +87,8 @@ class GameRedisRepository(GameRepository):
 
         await self.redis_client.set(key, json.dumps(hits))
 
-    async def push_to_queue(self, queue_name: str, player_id: int) -> None:
-        await self.redis_client.rpush(queue_name, player_id)  # type: ignore
+    async def push_to_queue(self, queue_name: str, player: uuid.UUID) -> None:
+        await self.redis_client.rpush(queue_name, player)  # type: ignore
 
     async def pop_from_queue(self, queue_name: str) -> str | None:
         player_id = await self.redis_client.lpop(queue_name)  # type: ignore
@@ -77,3 +96,19 @@ class GameRedisRepository(GameRepository):
 
     async def save_game_session(self, game_key: str, game_data: Any) -> None:
         await self.redis_client.set(game_key, json.dumps(game_data))
+
+    async def save_game_to_redis(
+        self,
+        game_id: uuid.UUID,
+        players_data: dict[str, dict[str, dict[str, list[str]]]],
+    ) -> None:
+        redis_key = f"game:{str(game_id)}"
+
+        payload: dict[str, Any] = {
+            "game_id": str(game_id),
+            "start_datetime": int(time.time()),
+            "end_datetime": None,
+            "players": players_data,  # {str(player_id): {"board": ...}}
+        }
+
+        await self.redis_client.set(redis_key, json.dumps(payload))

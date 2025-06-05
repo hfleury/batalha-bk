@@ -6,6 +6,7 @@ from src.core.manager.connection_manager import ConnectionManager
 from src.core.player.models import WebSocketConnection
 from src.core.services.game import GameService
 from src.infra.redis.game_repo_impl import GameRedisRepository
+from src.core.player.player_connection import PlayerConnection
 
 router = APIRouter()
 game_service = GameService(GameRedisRepository())
@@ -17,11 +18,14 @@ async def websocket_connection(websocket: WebSocket) -> None:
 
     await websocket.accept()
 
-    player_id: int = conn_manager.get_available_player_id()
+    # TODO remove it because the player ID will come before connect to
+    # the websocket server
+    player_id = conn_manager.get_new_player_id()
     conn_websocket = WebSocketConnection(player_id, websocket)
-    player = Player(player_id, conn_websocket)
+    player = Player(player_id)
+    player_conn = PlayerConnection(player=player, connection=conn_websocket)
 
-    conn_manager.add_player(player)
+    conn_manager.add_player(player_conn)
 
     await websocket.send_text(f"Welcome, Player {player_id}!")
     await conn_manager.broadcast(
@@ -35,7 +39,7 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 payload = json.loads(data)
                 action = payload.get("action")
 
-                response = await game_service.handle_action(action, payload, player_id)
+                response = await game_service.handle_action(action, payload, player)
                 await websocket.send_json(response)
 
             except json.JSONDecodeError:

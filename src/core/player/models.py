@@ -1,3 +1,4 @@
+import uuid
 from fastapi import WebSocket
 from src.core.interface.connection_protocol import ConnectionProtocol
 
@@ -7,7 +8,7 @@ class WebSocketConnection(ConnectionProtocol):
     Represents a player in the Websocket connection.
     """
 
-    def __init__(self, player_id: int, websocket: WebSocket):
+    def __init__(self, player_id: uuid.UUID, websocket: WebSocket):
         """
         Initialize a Player Object
 
