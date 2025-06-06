@@ -102,4 +102,9 @@ class GameRedisRepository(GameRepository):
         game: GameSession,
     ) -> None:
         redis_key = f"game:{str(game.game_id)}"
-        await self.redis_client.set(redis_key, json.dumps(game.to_serializable_dict()))
+        # TODO add it to configuration
+        ttl_seconds = 86400  # 24h in seconds
+
+        await self.redis_client.set(
+            redis_key, json.dumps(game.to_serializable_dict()), ex=ttl_seconds
+        )
