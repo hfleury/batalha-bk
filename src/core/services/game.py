@@ -2,7 +2,7 @@ from typing import Any
 from src.core.interface.game_repository import GameRepository
 from src.core.domain.player import Player
 from src.core.domain.ship import Ship
-from src.core.domain.game import GameSession, PlayerBoard
+from src.core.domain.game import GameSession, PlayerBoard, GameStatus
 from src.core.serializer.ship import parse_ships
 from src.core.schemas.place_ships import StandardResponse, ShipPlacementRequest
 from src.core.schemas.game_actions import (
@@ -11,6 +11,7 @@ from src.core.schemas.game_actions import (
     FindGameRequest,
 )
 from src.core.schemas.player_info import PlayerInfoRequest
+from src.core.manager.connection_manager import ConnectionManager
 from pydantic import ValidationError
 import uuid
 import logging
@@ -20,11 +21,15 @@ import time
 # TODO Add logger where it is need.
 
 logger = logging.getLogger(__name__)
+# logger.info("[game:%s][player:%s] Player shot at %s", game_id, player_id, target)
 
 
 class GameService:
-    def __init__(self, repository: GameRepository) -> None:
+    def __init__(
+        self, repository: GameRepository, conn_manager: ConnectionManager
+    ) -> None:
         self.repository = repository
+        self.conn_manager = conn_manager
 
     async def handle_action(
         self, action: str, payload: dict[Any, Any], player: Player
@@ -148,7 +153,8 @@ class GameService:
         for player_id_str, raw_ships_raw in players_data.items():
             try:
                 player_id_int = uuid.UUID(player_id_str)
-            except ValueError:
+            except ValueError as e:
+                logger.error(f"Valuer error on start_game validation error: {e}")
                 return StandardResponse(
                     status="error",
                     message=f"Invalid player ID: {player_id_str}",
@@ -207,70 +213,106 @@ class GameService:
         return rtn_player_info
 
     async def shoot(self, request: ShootRequest) -> StandardResponse:
-        shooter = Player(id=request.player_id)
-
-        opponent_id = await self.repository.get_opponent_id(request.game_id, shooter)
-        if opponent_id is None:
-            logger.info(f"No opponent found for game_id: {request.game_id}")
-            return StandardResponse(
-                status="error",
-                message="No opponent found",
-                action="resp_shoot",
-                data="",
-            )
-
-        opponent_board = await self.repository.get_player_board(
-            request.game_id, opponent_id
-        )
-
-        if not opponent_board:
-            return StandardResponse(
-                status="error",
-                message=f"Opponent{opponent_id} board not found"
-                " of game:{request.game_id}",
-                action="resp_shoot",
-                data="",
-            )
-
-        for ship_id, positions in opponent_board.items():
-            if request.target in positions:
-                await self.repository.save_hit(
-                    request.game_id, opponent_id, ship_id, request.target
-                )
-                hits = await self.repository.get_player_hits(
-                    request.game_id, opponent_id
-                )
-                is_sunk = set(hits.get(ship_id, [])) == set(positions)
-
+        game = await self.repository.load_game_session(request.game_id)
+        if game:
+            if game.status != "IN_PROGRESS":
                 return StandardResponse(
-                    status="OK",
-                    message=f"the shoot of the player{request.player_id}"
-                    " hit the target:{request.target}",
+                    status="error",
+                    message="Game is not active",
                     action="resp_shoot",
-                    data={
-                        "status": "hit",
-                        "target": request.target,
-                        "ship_id": ship_id,
-                        "sunk": is_sunk,
-                    },
+                    data="",
                 )
 
+            # Check if it's the shooter's turn
+            if request.player_id != game.current_turn:
+                return StandardResponse(
+                    status="error",
+                    message="It's not your turn",
+                    action="resp_shoot",
+                    data="",
+                )
+
+            shooter = Player(id=request.player_id)
+            opponent_id = await self.repository.get_opponent_id(
+                request.game_id, shooter
+            )
+            if opponent_id is None:
+                logger.info(f"No opponent found for game_id: {request.game_id}")
+                return StandardResponse(
+                    status="error",
+                    message="No opponent found",
+                    action="resp_shoot",
+                    data="",
+                )
+
+            opponent_board = await self.repository.get_player_board(
+                request.game_id, opponent_id
+            )
+
+            if not opponent_board:
+                return StandardResponse(
+                    status="error",
+                    message=f"Opponent{opponent_id} board not found"
+                    " of game:{request.game_id}",
+                    action="resp_shoot",
+                    data="",
+                )
+
+            for ship_id, positions in opponent_board.items():
+                if request.target in positions:
+                    await self.repository.save_hit(
+                        request.game_id, opponent_id, ship_id, request.target
+                    )
+                    hits = await self.repository.get_player_hits(
+                        request.game_id, opponent_id
+                    )
+                    is_sunk = set(hits.get(ship_id, [])) == set(positions)
+
+                    return StandardResponse(
+                        status="OK",
+                        message=f"the shoot of the player{request.player_id}"
+                        " hit the target:{request.target}",
+                        action="resp_shoot",
+                        data={
+                            "status": "hit",
+                            "target": request.target,
+                            "ship_id": ship_id,
+                            "sunk": is_sunk,
+                        },
+                    )
+
+                game.current_turn = self._get_next_player(game, request.player_id)
+                await self.repository.save_game_session(game)
+
+            return StandardResponse(
+                status="OK",
+                message=f"the shoot of the player{request.player_id}"
+                " on target:{request.target}",
+                action="resp_shoot",
+                data={"status": "miss", "target": request.target},
+            )
         return StandardResponse(
-            status="OK",
-            message=f"the shoot of the player{request.player_id}"
-            " on target:{request.target}",
+            status="error",
+            message="Game not found",
             action="resp_shoot",
-            data={"status": "miss", "target": request.target},
+            data="",
         )
 
     async def find_game_session(self, player: FindGameRequest) -> StandardResponse:
         queue_key = "matchmaking:queue"
 
-        opponent_player_id = await self.repository.pop_from_queue(queue_key)
+        opponent_player_id = await self.repository.get_opponent_from_queue(
+            queue_key, player.player_id
+        )
+        logger.debug(f"The opponent_player_id {opponent_player_id}")
 
         if opponent_player_id:
+
+            await self.repository.pop_from_queue(queue_key, opponent_player_id)
+
             game_id = uuid.uuid4()
             now = int(time.time())
+            current_turn = player.player_id
 
             game_data = GameSession(
                 game_id=game_id,
@@ -280,9 +322,24 @@ class GameService:
                     opponent_player_id: PlayerBoard(),
                     player.player_id: PlayerBoard(),
                 },
+                current_turn=current_turn,
+                status=GameStatus.IN_PROGRESS,
             )
+            try:
+                await self.repository.save_game_to_redis(game_data)
+            except Exception as e:
+                logger.error(f"Game Not saved ERROR: {e}")
 
-            await self.repository.save_game_to_redis(game_data)
+            # Notify both player the game started
+            notify_payload = StandardResponse(
+                status="OK",
+                message="Game has started",
+                action="res_find_game_session",
+                data=game_data.to_serializable_dict(),
+            ).to_dict()
+
+            await self.conn_manager.send_to_player(player.player_id, notify_payload)
+            await self.conn_manager.send_to_player(player.player_id, notify_payload)
 
             return StandardResponse(
                 status="OK",
@@ -292,10 +349,19 @@ class GameService:
             )
 
         # No player waiting, put current player in queue
-        await self.repository.push_to_queue(queue_key, player.player_id)
+        await self.repository.push_to_queue(
+            queue_key,
+            player.player_id,
+        )
         return StandardResponse(
             status="OK",
             message="Waiting for another player",
             action="res_find_game_session",
             data="",
         )
+
+    def _get_next_player(self, game: GameSession, current_id: uuid.UUID) -> uuid.UUID:
+        for pid in game.players:
+            if pid != current_id:
+                return pid
+        return current_id

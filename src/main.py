@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 
 from src.api.websocket_handler import router
+from src.infra.logger import setup_logging
 
+setup_logging()
 app = FastAPI()
 app.include_router(router)
 

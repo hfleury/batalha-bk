@@ -1,7 +1,14 @@
+from enum import Enum
 from pydantic import BaseModel, Field
 import uuid
 import time
 from typing import Any
+
+
+class GameStatus(str, Enum):
+    WAITING = "waiting"
+    IN_PROGRESS = "in_progress"
+    FINISHED = "finished"
 
 
 class PlayerBoard(BaseModel):
@@ -13,6 +20,8 @@ class GameSession(BaseModel):
     start_datetime: int = Field(default_factory=lambda: int(time.time()))
     end_datetime: int = 0
     players: dict[uuid.UUID, PlayerBoard]
+    current_turn: uuid.UUID
+    status: GameStatus = GameStatus.WAITING
 
     def to_serializable_dict(self) -> dict[str, Any]:
         return {
@@ -23,4 +32,6 @@ class GameSession(BaseModel):
                 str(player_id): board.model_dump()
                 for player_id, board in self.players.items()
             },
+            "current_turn": str(self.current_turn),
+            "status": self.status.value,
         }

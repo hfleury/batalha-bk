@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import uuid
-from typing import Any
 from src.core.domain.player import Player
 from src.core.domain.ship import Ship
 from src.core.domain.game import GameSession
@@ -49,11 +48,11 @@ class GameRepository(ABC):
         pass
 
     @abstractmethod
-    async def pop_from_queue(self, queue_name: str) -> uuid.UUID | None:
+    async def pop_from_queue(self, queue_name: str, player: uuid.UUID) -> None:
         pass
 
     @abstractmethod
-    async def save_game_session(self, game_key: str, game_data: Any) -> None:
+    async def save_game_session(self, game: GameSession) -> None:
         pass
 
     @abstractmethod
@@ -61,4 +60,13 @@ class GameRepository(ABC):
         self,
         game: GameSession,
     ) -> None:
+        pass
+
+    async def load_game_session(self, game_id: uuid.UUID) -> GameSession | None:
+        pass
+
+    @abstractmethod
+    async def get_opponent_from_queue(
+        self, queue_name: str, player_id: uuid.UUID
+    ) -> uuid.UUID | None:
         pass

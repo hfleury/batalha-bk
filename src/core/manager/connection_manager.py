@@ -1,6 +1,7 @@
 import logging
 import uuid
-from typing import Optional
+import json
+from typing import Any
 
 from src.core.player.player_connection import PlayerConnection
 from src.core.domain.player import Player
@@ -32,12 +33,12 @@ class ConnectionManager:
                 f"Player {player_id} removed. Remaining: {len(self.connected_players)}"
             )
 
-    def get_player(self, player: Player) -> Optional[PlayerConnection]:
+    def get_player(self, player: Player) -> PlayerConnection | None:
         """Retrieve the PlayerConnection associated with a Player."""
         return self.connected_players.get(player.id)
 
     async def broadcast(
-        self, message: str, excluded_player_id: Optional[uuid.UUID] = None
+        self, message: str, excluded_player_id: uuid.UUID | None = None
     ) -> None:
         """
         Broadcast a message to all connected players, optionally excluding one.
@@ -66,3 +67,25 @@ class ConnectionManager:
             except Exception as e:
                 logger.error(f"Error closing connection for Player {player_id}: {e}")
             self.remove_player(player_id)
+
+    async def send_to_player(
+        self, player_id: uuid.UUID, message: str | dict[str, Any]
+    ) -> None:
+        """Send a message to a specific player via WebSocket.
+        If the player is disconnected, their connection is cleaned up.
+
+        Args:
+            player_id (uuid.UUID): The unique identifier of the player
+            message (str): The message to be send
+        """
+        if isinstance(message, dict):
+            message = json.dumps(message)
+        player_conn = self.connected_players.get(player_id)
+        if player_conn:
+            try:
+                await player_conn.send_message(message=message)
+            except Exception as e:
+                logger.error(
+                    f"Failed to send message to Player: {player_id} error: {e}"
+                )
+                await self._remove_and_close(player_id)
