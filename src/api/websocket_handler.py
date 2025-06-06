@@ -1,3 +1,5 @@
+import uuid
+import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import json
 
@@ -9,13 +11,16 @@ from src.infra.redis.game_repo_impl import GameRedisRepository
 from src.core.player.player_connection import PlayerConnection
 
 router = APIRouter()
-game_service = GameService(GameRedisRepository())
+conn_manager = ConnectionManager()
+game_repo = GameRedisRepository()
+game_service = GameService(game_repo, conn_manager)
+logger = logging.getLogger(__name__)
 
 
 @router.websocket("/ws/connect")
 async def websocket_connection(websocket: WebSocket) -> None:
-    conn_manager = ConnectionManager()
-
+    trace_id = str(uuid.uuid4)
+    logger.info(f"[{trace_id}] New connection established")
     await websocket.accept()
 
     # TODO remove it because the player ID will come before connect to
@@ -42,14 +47,21 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 response = await game_service.handle_action(action, payload, player)
                 await websocket.send_json(response.to_dict())
 
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                logger.error(f"[{trace_id}] Invalid JSON ERROR: {e}")
                 await websocket.send_json(
                     {"status": "error", "message": "Invalid JSON format"}
                 )
-    except WebSocketDisconnect:
+    except WebSocketDisconnect as e:
+        logger.info(f"[{trace_id}] Disconnected {e}")
+        queue_key = "matchmaking:queue"
+        await game_repo.pop_from_queue(queue_key, player_id)
         conn_manager.remove_player(player_id)
         await conn_manager.broadcast(f"Player {player_id} has left.")
     except Exception as e:
+        logger.info(f"[{trace_id}] ERROR {e}")
+        queue_key = "matchmaking:queue"
+        await game_repo.pop_from_queue(queue_key, player_id)
         conn_manager.remove_player(player_id)
         await websocket.send_json({"status": "error", "message": str(e)})
         await conn_manager.broadcast(f"Player {player_id} has left due to error.")
