@@ -68,6 +68,13 @@ class ConnectionManager:
                 logger.error(f"Error closing connection for Player {player_id}: {e}")
             self.remove_player(player_id)
 
+    def default_encoder(self, obj):
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        raise TypeError(
+            f"Object of type {obj.__class__.__name__} is not JSON serializable"
+        )
+
     async def send_to_player(
         self, player_id: uuid.UUID, message: str | dict[str, Any]
     ) -> None:
@@ -79,7 +86,7 @@ class ConnectionManager:
             message (str): The message to be send
         """
         if isinstance(message, dict):
-            message = json.dumps(message)
+            message = json.dumps(message, default=self.default_encoder)
         player_conn = self.connected_players.get(player_id)
         if player_conn:
             try:

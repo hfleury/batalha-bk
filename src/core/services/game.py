@@ -309,7 +309,7 @@ class GameService:
         if opponent_player_id:
 
             await self.repository.pop_from_queue(queue_key, opponent_player_id)
-
+            logger.info(f"ESTA AQUIIII {opponent_player_id}")
             game_id = uuid.uuid4()
             now = int(time.time())
             current_turn = player.player_id
@@ -325,6 +325,7 @@ class GameService:
                 current_turn=current_turn,
                 status=GameStatus.IN_PROGRESS,
             )
+            logger.debug(f"AFTER CREATE GAMESESSION {game_data}")
             try:
                 await self.repository.save_game_to_redis(game_data)
             except Exception as e:

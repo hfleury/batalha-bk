@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any
 
 
@@ -11,9 +11,11 @@ class SerializableModel(BaseModel):
 
 
 class ShipPlacementRequest(BaseModel):
-    game_id: str
-    player_id: str
-    ships: dict[str, list[str]]
+    game_id: str = Field(..., description="The ID of the game")
+    player_id: str = Field(..., description="The ID of the player placing ships")
+    ships: dict[str, list[str]] = Field(
+        ..., description="Dictionary mapping ship names to coordinates"
+    )
 
 
 class StandardResponse(SerializableModel):

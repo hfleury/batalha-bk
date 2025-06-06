@@ -95,7 +95,9 @@ class GameRedisRepository(GameRepository):
         await self.redis_client.rpush(queue_name, payload)  # type: ignore
 
     async def pop_from_queue(self, queue_name: str, player: uuid.UUID) -> None:
+        logger.debug("ESTA NA POP FROM QUEUE")
         payload = json.dumps({"player_id": str(player)})
+        logger.debug(f"ESSE O PAYLOAD {payload}")
         await self.redis_client.lrem(queue_name, 1, payload)  # type: ignore
 
     async def save_game_to_redis(
@@ -103,13 +105,19 @@ class GameRedisRepository(GameRepository):
         game: GameSession,
     ) -> None:
         game_dict = game.to_serializable_dict()
+        logger.debug(f"INSIDE SAVE GAME TO REDIS {game_dict}")
         redis_key = f"game:{str(game_dict["game_id"])}"
         # TODO add it to configuration
         ttl_seconds = 86400  # 24h in seconds
-
-        await self.redis_client.set(
-            redis_key, json.dumps(game.to_serializable_dict()), ex=ttl_seconds
+        logger.debug(
+            f"GAME TO SERIALIZABLE DICT JSON DUMPS {json.dumps(game.to_serializable_dict())}"
         )
+        try:
+            await self.redis_client.set(
+                redis_key, json.dumps(game.to_serializable_dict()), ex=ttl_seconds
+            )
+        except Exception as e:
+            logger.error(f"NAO SALVO O JOGO ERROR: {e}")
 
     async def load_game_session(self, game_id: uuid.UUID) -> GameSession | None:
         key = f"game:{game_id}:session"

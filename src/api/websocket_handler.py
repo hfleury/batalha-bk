@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 @router.websocket("/ws/connect")
 async def websocket_connection(websocket: WebSocket) -> None:
-    trace_id = str(uuid.uuid4)
+    trace_id = str(uuid.uuid4())
     logger.info(f"[{trace_id}] New connection established")
     await websocket.accept()
 
@@ -45,7 +45,7 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 action = payload.get("action")
 
                 response = await game_service.handle_action(action, payload, player)
-                await websocket.send_json(response.to_dict())
+                await websocket.send_json(response.to_json())
 
             except json.JSONDecodeError as e:
                 logger.error(f"[{trace_id}] Invalid JSON ERROR: {e}")
@@ -53,15 +53,16 @@ async def websocket_connection(websocket: WebSocket) -> None:
                     {"status": "error", "message": "Invalid JSON format"}
                 )
     except WebSocketDisconnect as e:
-        logger.info(f"[{trace_id}] Disconnected {e}")
+        logger.error(f"[{trace_id}] Disconnected {e}")
         queue_key = "matchmaking:queue"
         await game_repo.pop_from_queue(queue_key, player_id)
         conn_manager.remove_player(player_id)
         await conn_manager.broadcast(f"Player {player_id} has left.")
     except Exception as e:
-        logger.info(f"[{trace_id}] ERROR {e}")
+        logger.debug("HENRIQUE FLEURY CARDOSO")
+        logger.error(f"[{trace_id}] ERROR {e}")
         queue_key = "matchmaking:queue"
         await game_repo.pop_from_queue(queue_key, player_id)
         conn_manager.remove_player(player_id)
         await websocket.send_json({"status": "error", "message": str(e)})
-        await conn_manager.broadcast(f"Player {player_id} has left due to error.")
+        await conn_manager.broadcast(f"Player {str(player_id)} has left due to error.")
