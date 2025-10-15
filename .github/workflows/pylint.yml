@@ -25,7 +25,7 @@ jobs:
         
         # 3. CRITICAL FIX: Install only the specific type stubs needed.
         # Removed 'types-pydantic' as modern Pydantic is generally type-aware.
-        python -m pip install types-redis types-uvicorn types-requests
+        # python -m pip install types-redis types-uvicorn types-requests
         
     - name: Run Flake8 (Style and Simple Code Quality)
       run: |
