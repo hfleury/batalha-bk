@@ -20,25 +20,21 @@ jobs:
         # 1. Install Poetry
         python -m pip install poetry
         
-        # 2. Install ALL project dependencies via Poetry (Crucial for all linters to resolve imports).
-        poetry install --no-root 
+        # 2. Install ALL project and development dependencies via Poetry.
+        poetry install --no-root --with dev
         
-        # 3. Install your explicit quality tools (mypy, flake8, pylint)
-        python -m pip install pylint flake8 mypy
-        
-        # 4. CRITICAL FIX: Install type stubs required for MyPy's deep analysis.
-        # These stubs allow MyPy to understand the types of third-party libraries.
-        python -m pip install types-pydantic types-redis types-uvicorn types-requests
+        # 3. CRITICAL FIX: Install only the specific type stubs needed.
+        # Removed 'types-pydantic' as modern Pydantic is generally type-aware.
+        python -m pip install types-redis types-uvicorn types-requests
         
     - name: Run Flake8 (Style and Simple Code Quality)
       run: |
-        flake8 $(git ls-files '*.py')
+        poetry run flake8 $(git ls-files '*.py')
 
     - name: Run MyPy (Static Type Checking)
       run: |
-        # MyPy is now properly configured with stubs to check your source code.
-        mypy src
+        poetry run mypy src
 
     - name: Run Pylint (Deep Code Analysis)
       run: |
-        pylint $(git ls-files '*.py')
+        poetry run pylint $(git ls-files '*.py')
