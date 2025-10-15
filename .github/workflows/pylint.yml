@@ -1,4 +1,4 @@
-name: Pylint
+name: Linting and Type Checking
 
 on: [push]
 
@@ -7,25 +7,38 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.13"]
+        python-version: ["3.13"] 
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+        
+    - name: Install Tools and Project Dependencies
       run: |
-        pip install poetry
-        poetry install --no-root
-        pip install flake8 mypy
+        # 1. Install Poetry
+        python -m pip install poetry
+        
+        # 2. Install ALL project dependencies via Poetry (Crucial for all linters to resolve imports).
+        poetry install --no-root 
+        
+        # 3. Install your explicit quality tools (mypy, flake8, pylint)
+        python -m pip install pylint flake8 mypy
+        
+        # 4. CRITICAL FIX: Install type stubs required for MyPy's deep analysis.
+        # These stubs allow MyPy to understand the types of third-party libraries.
+        python -m pip install types-pydantic types-redis types-uvicorn types-requests
+        
     - name: Run Flake8 (Style and Simple Code Quality)
       run: |
-        # Checks for PEP 8 compliance and simple complexity issues.
         flake8 $(git ls-files '*.py')
 
     - name: Run MyPy (Static Type Checking)
       run: |
-        # Checks for type consistency based on your type hints.
-        # Assuming your main source code is in a 'src' directory. Adjust if needed.
+        # MyPy is now properly configured with stubs to check your source code.
         mypy src
+
+    - name: Run Pylint (Deep Code Analysis)
+      run: |
+        pylint $(git ls-files '*.py')
