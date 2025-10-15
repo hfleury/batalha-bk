@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
@@ -5,16 +6,12 @@ import pytest
 from src.core.domain.player import Player
 
 
-def create_uuid_player() -> uuid.UUID:
-    
-
-
 def test_Player_init() -> None:
     """
     Test that the Player.__init__ method correctly initialize a new Player instance
     """
     mock_ws = MagicMock()
-    player_id = 1
+    player_id = uuid.uuid4()
     player = Player(player_id, mock_ws)
 
     assert (
