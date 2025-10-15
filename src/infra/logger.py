@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-import coloredlogs
+import coloredlogs  # type: ignore
 
 TRACE_LEVEL: int = 5
 logging.addLevelName(TRACE_LEVEL, "TRACE")
@@ -21,7 +21,7 @@ def setup_logging() -> None:
 
     fmt = "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
 
-    coloredlogs.install(
+    coloredlogs.install(  # type: ignore
         level=TRACE_LEVEL,
         logger=logger,
         fmt=fmt,
