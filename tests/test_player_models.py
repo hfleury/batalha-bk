@@ -1,3 +1,5 @@
+"""Test file for the players basic actions"""
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock, call
 
@@ -6,7 +8,7 @@ import pytest
 from src.core.domain.player import Player
 
 
-def test_Player_init() -> None:
+def test_player_init() -> None:
     """
     Test that the Player.__init__ method correctly initialize a new Player instance
     """
