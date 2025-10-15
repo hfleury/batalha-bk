@@ -111,7 +111,9 @@ class GameRedisRepository(GameRepository):
         # TODO add it to configuration
         ttl_seconds = 86400  # 24h in seconds
         logger.debug(
-            f"GAME TO SERIALIZABLE DICT JSON DUMPS {json.dumps(game.to_serializable_dict())}"
+            f"GAME TO SERIALIZABLE DICT JSON DUMPS {
+                json.dumps(game.to_serializable_dict())
+            }"
         )
         try:
             await self.redis_client.set(
