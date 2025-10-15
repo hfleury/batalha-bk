@@ -1,5 +1,3 @@
-set shell := ["powershell.exe", "-c"]
-
 ## Show this help message
 help:
     @echo "Usage: just [command]"
