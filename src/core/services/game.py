@@ -1,3 +1,5 @@
+"""Provides the core business logic for the game service."""
+
 import logging
 import time
 import uuid
@@ -10,28 +12,53 @@ from src.core.domain.player import Player
 from src.core.domain.ship import Ship
 from src.core.interface.game_repository import GameRepository
 from src.core.manager.connection_manager import ConnectionManager
-from src.core.schemas.game_actions import (FindGameRequest, ShootRequest,
-                                           StartGameRequest)
+from src.core.schemas.game_actions import (
+    FindGameRequest,
+    ShootRequest,
+    StartGameRequest,
+)
 from src.core.schemas.place_ships import ShipPlacementRequest, StandardResponse
 from src.core.schemas.player_info import PlayerInfoRequest
 from src.core.serializer.ship import parse_ships
-
-# TODO have here just the GameService logic, move the handler to another place
-# TODO Add logger where it is need.
 
 logger = logging.getLogger(__name__)
 
 
 class GameService:
+    """Orchestrates game logic, handling player actions and game state.
+
+    This service acts as a facade for all game-related operations, coordinating
+    between the data repository and the connection manager to manage game flow.
+
+    Attributes:
+        repository: An instance of a GameRepository for data persistence.
+        conn_manager: An instance of a ConnectionManager for handling player
+        connections.
+    """
+
     def __init__(
         self, repository: GameRepository, conn_manager: ConnectionManager
     ) -> None:
+        """Initializes the GameService."""
         self.repository = repository
         self.conn_manager = conn_manager
 
     async def handle_action(
         self, action: str, payload: dict[Any, Any], player: Player
     ) -> StandardResponse:
+        """Routes incoming player actions to the appropriate handler method.
+
+        This method acts as a dispatcher, validating the payload for a given
+        action and calling the corresponding service method.
+
+        Args:
+            action: The action requested by the player (e.g., 'place_ships').
+            payload: The data associated with the action.
+            player: The player who initiated the action.
+
+        Returns:
+            A StandardResponse object with the result of the action.
+        """
         if action == "place_ships":
             # Construct ShipPlacementRequest from payload and player
             try:
@@ -126,6 +153,15 @@ class GameService:
     async def place_ships(
         self, request: ShipPlacementRequest, player: Player
     ) -> StandardResponse:
+        """Handles the logic for a player to place their ships on the board.
+
+        Args:
+            request: The validated request containing ship placement data.
+            player: The player placing the ships.
+
+        Returns:
+            A StandardResponse indicating the outcome of the operation.
+        """
         try:
             ships: list[Ship] = parse_ships(request.ships)
         except ValueError as e:
@@ -144,7 +180,17 @@ class GameService:
         )
 
     async def start_game(self, request: StartGameRequest) -> StandardResponse:
-        # TODO add the saved data to the return
+        """Initializes a game by setting up the boards for all players.
+
+        Note: This is likely a legacy or administrative action. Game creation
+        is typically handled by `find_game_session`.
+
+        Args:
+            request: The validated request containing game and player ship data.
+
+        Returns:
+            A StandardResponse indicating the outcome of the operation.
+        """
         game_id = request.game_id
         players_data = request.players
 
@@ -186,32 +232,42 @@ class GameService:
         )
 
     async def get_game_info(self, request: PlayerInfoRequest) -> StandardResponse:
-        # TODO ask betoso if we should change the name of the action
-        # to get_game_player_id_info
+        """Retrieves the board information for a specific player in a game.
 
-        player_info = Player(
-            id=uuid.UUID(request.player_id),
-        )
+        Args:
+            request: The validated request containing the game and player IDs.
 
-        if not request.game_id or request.player_id == "":
+        Returns:
+            A StandardResponse containing the player's board data.
+        """
+        if not request.game_id or not request.player_id:
             return StandardResponse(
                 status="error",
                 message="Missing game_id or player_id",
                 action="resp_get_game_info",
                 data="",
             )
+
+        player = Player(id=request.player_id)
         rtn_player_info = StandardResponse(
             status="OK",
             message=f"player: {request.player_id} info for game: {request.game_id}",
             action="resp_get_game_info",
-            data=await self.repository.get_player_board(
-                request.game_id, player_info.id
-            ),
+            data=await self.repository.get_player_board(request.game_id, player.id),
         )
         return rtn_player_info
 
     async def shoot(self, request: ShootRequest) -> StandardResponse:
+        """Handles a player's attempt to shoot at an opponent's board.
+
+        Args:
+            request: The validated request containing game, player, and target info.
+
+        Returns:
+            A StandardResponse indicating whether the shot was a hit or miss.
+        """
         game = await self.repository.load_game_session(request.game_id)
+
         if game:
             if game.status != GameStatus.IN_PROGRESS:
                 return StandardResponse(
@@ -297,6 +353,19 @@ class GameService:
         )
 
     async def find_game_session(self, player: FindGameRequest) -> StandardResponse:
+        """Handles a player's request to find and join a game.
+
+        If an opponent is waiting in the queue, a new game is created and
+        both players are notified. Otherwise, the current player is added
+        to the queue.
+
+        Args:
+            player: The validated request containing the player's ID.
+
+        Returns:
+            A StandardResponse indicating if a game was created or if the player is
+            waiting.
+        """
         queue_key = "matchmaking:queue"
 
         opponent_player_id = await self.repository.get_opponent_from_queue(
@@ -360,6 +429,15 @@ class GameService:
         )
 
     def _get_next_player(self, game: GameSession, current_id: uuid.UUID) -> uuid.UUID:
+        """Determines the next player's turn in a game.
+
+        Args:
+            game: The current game session.
+            current_id: The UUID of the player who just finished their turn.
+
+        Returns:
+            The UUID of the next player.
+        """
         for pid in game.players:
             if pid != current_id:
                 return pid

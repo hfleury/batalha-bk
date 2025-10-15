@@ -1,3 +1,5 @@
+"""Domain models for the game state and related entities."""
+
 import time
 import uuid
 from enum import Enum
@@ -7,16 +9,31 @@ from pydantic import BaseModel, Field
 
 
 class GameStatus(str, Enum):
+    """Enumeration for the status of a game session."""
+
     WAITING = "waiting"
     IN_PROGRESS = "in_progress"
     FINISHED = "finished"
 
 
 class PlayerBoard(BaseModel):
+    """Represents a player's board, containing their ship placements."""
+
     board: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class GameSession(BaseModel):
+    """Represents the state of a single game session.
+
+    Attributes:
+        game_id: The unique identifier for the game.
+        start_datetime: The Unix timestamp when the game started.
+        end_datetime: The Unix timestamp when the game finished.
+        players: A dictionary mapping player UUIDs to their respective boards.
+        current_turn: The UUID of the player whose turn it is.
+        status: The current status of the game.
+    """
+
     game_id: uuid.UUID
     start_datetime: int = Field(default_factory=lambda: int(time.time()))
     end_datetime: int = 0
@@ -25,6 +42,11 @@ class GameSession(BaseModel):
     status: GameStatus = GameStatus.WAITING
 
     def to_serializable_dict(self) -> dict[str, Any]:
+        """Converts the GameSession object to a JSON-serializable dictionary.
+
+        Returns:
+            A dictionary representation of the game session with UUIDs as strings.
+        """
         return {
             "game_id": str(self.game_id),
             "start_datetime": self.start_datetime,

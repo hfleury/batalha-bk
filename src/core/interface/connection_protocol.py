@@ -1,3 +1,5 @@
+"""Defines the protocol for player connections."""
+
 from typing import Protocol, runtime_checkable
 
 

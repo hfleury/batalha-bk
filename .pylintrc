@@ -5,4 +5,4 @@ ignored-modules=coloredlogs, pytest
 max-returns=12
 
 [MESSAGES CONTROL]
-disable=R0903, C0103, W1203, W0212, R1705, W0718, W0107
+disable=R0903, C0103, W1203, W0212, R1705, W0718, W0107, W0511

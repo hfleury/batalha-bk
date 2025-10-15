@@ -1,3 +1,5 @@
+"""Manages active WebSocket connections for players."""
+
 import json
 import logging
 import uuid
@@ -69,6 +71,14 @@ class ConnectionManager:
             self.remove_player(player_id)
 
     def default_encoder(self, obj: uuid.UUID) -> str:
+        """JSON encoder for UUID objects, converting them to strings.
+
+        Args:
+            obj: The object to encode. Expected to be a UUID.
+
+        Returns:
+            The string representation of the UUID.
+        """
         return str(obj)
 
     async def send_to_player(

@@ -1,3 +1,5 @@
+"""Concrete implementation of the connection protocol for FastAPI WebSockets."""
+
 import uuid
 
 from fastapi import WebSocket

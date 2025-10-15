@@ -13,7 +13,15 @@ logger = logging.getLogger(__name__)
 
 
 class GameRedisRepository(GameRepository):
+    """A game repository that uses Redis for data storage.
+
+    This class provides a concrete implementation of the GameRepository abstract
+    base class, using an asynchronous Redis client to persist and retrieve
+    game state.
+    """
+
     def __init__(self) -> None:
+        # TODO: Move Redis connection details to environment variables/configuration.
         self.redis_client: aioredis.Redis = aioredis.Redis(
             host="redis-18007.crce196.sa-east-1-2.ec2.redns.redis-cloud.com",
             port=18007,
@@ -25,16 +33,18 @@ class GameRedisRepository(GameRepository):
     async def save_player_board(
         self, game_id: str, player: Player, ships: list[Ship]
     ) -> None:
-        """Save the player's board ships positions
+        """Saves a player's board (ship placements) to Redis.
 
         Args:
-            game_id (str): UUID of the game
-            player_id (int): UUUID of the player
-            ships (Dict[str, List[str]]): Dictionary of ships and their positions
+            game_id: The unique identifier for the game.
+            player: The player object.
+            ships: A list of Ship objects representing the player's board.
         """
         key = f"game:{game_id}:player_board:{player.id}:board"
-        value = json.dumps(ships)
-        await self.redis_client.set(key, value)
+        # Convert list of Ship objects to the format expected by get_player_board
+        board_data = {ship.name: ship.position for ship in ships}
+        value = json.dumps(board_data)
+        await self.redis_client.set(key, value)  # type: ignore
 
     async def get_player_board(
         self, game_id: uuid.UUID, player_id: uuid.UUID
@@ -124,10 +134,10 @@ class GameRedisRepository(GameRepository):
 
     async def load_game_session(self, game_id: uuid.UUID) -> GameSession | None:
         key = f"game:{game_id}:session"
-        raw = await self.redis_client.get(key)
+        raw = await self.redis_client.get(key)  # type: ignore
         if not raw:
-            raise ValueError("Game session not found")
-        return GameSession.model_validate_json(raw)
+            return None
+        return GameSession.model_validate_json(raw)  # type: ignore
 
     async def save_game_session(self, game: GameSession) -> None:
         key = f"game:{game.game_id}:session"

@@ -1,3 +1,5 @@
+"""Data validation schemas for player-related actions."""
+
 import re
 from typing import List
 
@@ -18,6 +20,13 @@ def is_valid_coordinate(coord: str) -> bool:
 
 
 class ShipPlacement(BaseModel):
+    """Schema for validating a player's ship placement request.
+
+    Attributes:
+        player_id: The ID of the player placing the ships.
+        ships: A list of ships, where each ship is a list of its coordinates.
+    """
+
     player_id: int = Field()
     ships: List[List[str]] = Field(
         ..., description="List of ships with their coordinates"
