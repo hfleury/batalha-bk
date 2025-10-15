@@ -21,7 +21,7 @@ jobs:
     - name: Run Flake8 (Style and Simple Code Quality)
       run: |
         # Checks for PEP 8 compliance and simple complexity issues.
-        flake8 $$(git ls-files '*.py')
+        flake8 $(git ls-files '*.py')
 
     - name: Run MyPy (Static Type Checking)
       run: |
