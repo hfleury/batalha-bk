@@ -18,6 +18,13 @@ jobs:
       run: |
         pip install poetry
         poetry install --no-root --with dev
-    - name: Analysing the code with pylint
+    - name: Run Flake8 (Style and Simple Code Quality)
       run: |
-        poetry run pylint $(git ls-files '*.py')
+        # Checks for PEP 8 compliance and simple complexity issues.
+        flake8 $$(git ls-files '*.py')
+
+    - name: Run MyPy (Static Type Checking)
+      run: |
+        # Checks for type consistency based on your type hints.
+        # Assuming your main source code is in a 'src' directory. Adjust if needed.
+        mypy src
