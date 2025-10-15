@@ -28,7 +28,7 @@ format:
 lint:
     poetry run flake8 src/ tests/
     poetry run mypy src/
-    poetry run pylint src/ tests/
+    poetry run pylint --rcfile=.pylintrc src/ tests/
 
 test1:
     fastapi dev main.py

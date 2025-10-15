@@ -1,3 +1,5 @@
+"""Responsable to handle all action"""
+
 import json
 import logging
 import uuid
@@ -19,6 +21,20 @@ logger = logging.getLogger(__name__)
 
 @router.websocket("/ws/connect")
 async def websocket_connection(websocket: WebSocket) -> None:
+    """Handles the WebSocket connection for a player.
+
+    This function manages the entire lifecycle of a player's WebSocket connection.
+    It accepts a new connection, assigns a player ID, and adds the player to the
+    connection manager. It then enters a loop to listen for incoming messages
+    (actions) from the player, processes them through the `game_service`, and
+    sends back responses.
+
+    It also handles disconnection events, ensuring that the player is cleanly
+    removed from the game and connection manager.
+
+    Args:
+        websocket (WebSocket): The WebSocket connection instance for the client.
+    """
     trace_id = str(uuid.uuid4())
     logger.info(f"[{trace_id}] New connection established")
     await websocket.accept()
