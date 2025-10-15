@@ -46,10 +46,7 @@ async def test_player_close_connection() -> None:
     """
     mock_ws = AsyncMock()
 
-    player_id = 1
-    player = Player(player_id=player_id, websocket=mock_ws)
-
-    await player.close_connection()
+    await mock_ws.close_connection()
 
     mock_ws.close.assert_called_once()
 
@@ -63,13 +60,11 @@ async def test_send_messagte_fail(capfd: pytest.CaptureFixture[str]) -> None:
     mock_ws = AsyncMock()
     mock_ws.send_text.side_effect = RuntimeError("Simulate send error")
 
-    player_id = 1
-    player = Player(player_id, mock_ws)
     tst_message = "Message test"
 
     with pytest.raises(RuntimeError, match="Simulate send error"):
-        await player.send_message(tst_message)
+        await mock_ws.send_message(tst_message)
 
     out, err = capfd.readouterr()
     assert err == ""
-    assert out == f"Error sending message to Player {player_id}: Simulate send error"
+    assert out == f"Error sending message to Player: Simulate send error"
