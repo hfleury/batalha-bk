@@ -23,6 +23,7 @@ class ShipPlacement(BaseModel):
         ..., description="List of ships with their coordinates"
     )
 
+    @classmethod
     @field_validator("ships")
     def validate_ship_coordinates(cls, ships: List[List[str]]) -> List[List[str]]:
         """Validate all ships' coordinates."""
