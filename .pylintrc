@@ -1,0 +1,8 @@
+[MAIN]
+ignored-modules=coloredlogs, pytest
+
+[DESIGN]
+max-returns=8
+
+[MESSAGES CONTROL]
+disable=R0903, C0103, W1203
