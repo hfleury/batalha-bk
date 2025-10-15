@@ -20,7 +20,6 @@ from src.core.serializer.ship import parse_ships
 # TODO Add logger where it is need.
 
 logger = logging.getLogger(__name__)
-# logger.info("[game:%s][player:%s] Player shot at %s", game_id, player_id, target)
 
 
 class GameService:
@@ -214,7 +213,7 @@ class GameService:
     async def shoot(self, request: ShootRequest) -> StandardResponse:
         game = await self.repository.load_game_session(request.game_id)
         if game:
-            if game.status != "IN_PROGRESS":
+            if game.status != GameStatus.IN_PROGRESS:
                 return StandardResponse(
                     status="error",
                     message="Game is not active",
