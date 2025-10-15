@@ -18,6 +18,7 @@ jobs:
       run: |
         pip install poetry
         poetry install --no-root
+        pip install flake8 mypy
     - name: Run Flake8 (Style and Simple Code Quality)
       run: |
         # Checks for PEP 8 compliance and simple complexity issues.
