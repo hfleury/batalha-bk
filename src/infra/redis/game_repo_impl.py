@@ -1,3 +1,5 @@
+"""Concrete implementation of the GameRepository interface using Redis."""
+
 import json
 import logging
 import uuid

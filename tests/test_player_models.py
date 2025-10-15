@@ -5,68 +5,71 @@ from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
 
-from src.core.domain.player import Player
+from src.core.player.models import WebSocketConnection
 
 
-def test_player_init() -> None:
+def test_websocket_connection_init() -> None:
     """
-    Test that the Player.__init__ method correctly initialize a new Player instance
+    Test that WebSocketConnection.__init__ correctly initializes a new instance.
     """
     mock_ws = MagicMock()
     player_id = uuid.uuid4()
-    player = Player(player_id, mock_ws)
+    conn = WebSocketConnection(player_id, mock_ws)
 
-    # assert (
-    #    player.websocket is mock_ws
-    # ), "Player.websocket shoulb be the same object as the provided mock"
-    assert player.id == player_id
+    assert (
+        conn.websocket is mock_ws
+    ), "WebSocketConnection.websocket should be the same object as the provided mock"
+    assert conn.player_id == player_id
 
 
 @pytest.mark.asyncio
-async def test_player_send_message_success() -> None:
+async def test_websocket_connection_send_message_success() -> None:
     """
-    Test the Player.send_message method to ensure it correctly calls
-    the websocket.send_text method with the provided message
+    Test WebSocketConnection.send_message correctly calls websocket.send_text.
     """
     mock_ws = AsyncMock()
+    player_id = uuid.uuid4()
+    conn = WebSocketConnection(player_id, mock_ws)
 
     test_msg = "Message test"
-
-    await mock_ws.send_message(message=test_msg)
+    await conn.send_message(message=test_msg)
 
     mock_ws.send_text.assert_called_once()
     mock_ws.send_text.assert_called_with(test_msg)
-
     assert mock_ws.send_text.call_args == call(test_msg)
 
 
 @pytest.mark.asyncio
-async def test_player_close_connection() -> None:
+async def test_websocket_connection_close_connection() -> None:
     """
-    Test the Palyer.close_connection method to ensure it correctly
-    calls the websocket.close method.
+    Test WebSocketConnection.close_connection correctly calls websocket.close.
     """
     mock_ws = AsyncMock()
+    player_id = uuid.uuid4()
+    conn = WebSocketConnection(player_id, mock_ws)
 
-    await mock_ws.close_connection()
+    await conn.close_connection()
 
     mock_ws.close.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_send_messagte_fail(capfd: pytest.CaptureFixture[str]) -> None:
+async def test_websocket_connection_send_message_fail(
+    capfd: pytest.CaptureFixture[str],
+) -> None:
     """
-    Test the Player.send_message method to ensure the RuntimeError is
-    correctly handle and print the message
+    Test WebSocketConnection.send_message correctly handles and logs a RuntimeError.
     """
     mock_ws = AsyncMock()
     mock_ws.send_text.side_effect = RuntimeError("Simulate send error")
+    player_id = uuid.uuid4()
+    conn = WebSocketConnection(player_id, mock_ws)
 
-    tst_message = "Message test"
+    test_message = "Message test"
 
     with pytest.raises(RuntimeError, match="Simulate send error"):
-        await mock_ws.send_message(tst_message)
+        await conn.send_message(test_message)
 
     out, err = capfd.readouterr()
     assert err == ""
-    assert out == "Error sending message to Player: Simulate send error"
+    assert f"Error sending message to Player {player_id}: Simulate send error\n" in out

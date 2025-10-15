@@ -1,9 +1,9 @@
 """Data validation schema for player information requests."""
 
 import uuid
-from typing import Any
 
 from pydantic import BaseModel, field_validator
+from src.core.schemas.validators import ensure_uuid
 
 
 class PlayerInfoRequest(BaseModel):
@@ -17,13 +17,6 @@ class PlayerInfoRequest(BaseModel):
     game_id: uuid.UUID
     player_id: uuid.UUID
 
-    @field_validator("game_id", "player_id", mode="before")
-    @classmethod
-    def ensure_uuid(cls, v: Any) -> uuid.UUID:
-        """Validate that a given value can be converted to a UUID."""
-        if isinstance(v, uuid.UUID):
-            return v
-        try:
-            return uuid.UUID(str(v))
-        except ValueError as exc:
-            raise ValueError("Invalid UUID format") from exc
+    _validate_uuids = field_validator("game_id", "player_id", mode="before")(
+        ensure_uuid
+    )
