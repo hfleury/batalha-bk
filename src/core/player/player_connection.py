@@ -1,5 +1,5 @@
-from src.core.interface.connection_protocol import ConnectionProtocol
 from src.core.domain.player import Player
+from src.core.interface.connection_protocol import ConnectionProtocol
 
 
 class PlayerConnection:

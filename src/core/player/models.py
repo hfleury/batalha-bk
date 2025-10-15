@@ -1,5 +1,7 @@
 import uuid
+
 from fastapi import WebSocket
+
 from src.core.interface.connection_protocol import ConnectionProtocol
 
 

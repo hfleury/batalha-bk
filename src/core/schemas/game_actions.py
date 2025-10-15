@@ -1,6 +1,7 @@
-from pydantic import BaseModel, field_validator
-from typing import Any
 import uuid
+from typing import Any
+
+from pydantic import BaseModel, field_validator
 
 
 class StartGameRequest(BaseModel):

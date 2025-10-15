@@ -1,21 +1,20 @@
-from typing import Any
-from src.core.interface.game_repository import GameRepository
-from src.core.domain.player import Player
-from src.core.domain.ship import Ship
-from src.core.domain.game import GameSession, PlayerBoard, GameStatus
-from src.core.serializer.ship import parse_ships
-from src.core.schemas.place_ships import StandardResponse, ShipPlacementRequest
-from src.core.schemas.game_actions import (
-    StartGameRequest,
-    ShootRequest,
-    FindGameRequest,
-)
-from src.core.schemas.player_info import PlayerInfoRequest
-from src.core.manager.connection_manager import ConnectionManager
-from pydantic import ValidationError
-import uuid
 import logging
 import time
+import uuid
+from typing import Any
+
+from pydantic import ValidationError
+
+from src.core.domain.game import GameSession, GameStatus, PlayerBoard
+from src.core.domain.player import Player
+from src.core.domain.ship import Ship
+from src.core.interface.game_repository import GameRepository
+from src.core.manager.connection_manager import ConnectionManager
+from src.core.schemas.game_actions import (FindGameRequest, ShootRequest,
+                                           StartGameRequest)
+from src.core.schemas.place_ships import ShipPlacementRequest, StandardResponse
+from src.core.schemas.player_info import PlayerInfoRequest
+from src.core.serializer.ship import parse_ships
 
 # TODO have here just the GameService logic, move the handler to another place
 # TODO Add logger where it is need.

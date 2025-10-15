@@ -1,10 +1,10 @@
+import json
 import logging
 import uuid
-import json
 from typing import Any
 
-from src.core.player.player_connection import PlayerConnection
 from src.core.domain.player import Player
+from src.core.player.player_connection import PlayerConnection
 
 logger = logging.getLogger(__name__)
 
@@ -68,12 +68,8 @@ class ConnectionManager:
                 logger.error(f"Error closing connection for Player {player_id}: {e}")
             self.remove_player(player_id)
 
-    def default_encoder(self, obj):
-        if isinstance(obj, uuid.UUID):
-            return str(obj)
-        raise TypeError(
-            f"Object of type {obj.__class__.__name__} is not JSON serializable"
-        )
+    def default_encoder(self, obj: uuid.UUID) -> str:
+        return str(obj)
 
     async def send_to_player(
         self, player_id: uuid.UUID, message: str | dict[str, Any]

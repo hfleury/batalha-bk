@@ -1,14 +1,14 @@
-import uuid
-import logging
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import json
+import logging
+import uuid
 
-from src.core.player.player_connection import Player
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from src.core.manager.connection_manager import ConnectionManager
 from src.core.player.models import WebSocketConnection
+from src.core.player.player_connection import Player, PlayerConnection
 from src.core.services.game import GameService
 from src.infra.redis.game_repo_impl import GameRedisRepository
-from src.core.player.player_connection import PlayerConnection
 
 router = APIRouter()
 conn_manager = ConnectionManager()

@@ -1,6 +1,7 @@
 import logging
-import coloredlogs
 from typing import Any
+
+import coloredlogs
 
 TRACE_LEVEL: int = 5
 logging.addLevelName(TRACE_LEVEL, "TRACE")

@@ -1,9 +1,12 @@
 from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
-# removed capfd import, use fixture instead
 
-from src.player.models import Player
+from src.core.domain.player import Player
+
+
+def create_uuid_player() -> uuid.UUID:
+    
 
 
 def test_Player_init() -> None:
@@ -75,7 +78,4 @@ async def test_send_messagte_fail(capfd: pytest.CaptureFixture[str]) -> None:
 
     out, err = capfd.readouterr()
     assert err == ""
-    assert (
-        out
-        == f"Error sending message to Player {player_id}: Simulate send error"
-    )
+    assert out == f"Error sending message to Player {player_id}: Simulate send error"
