@@ -67,4 +67,4 @@ async def test_send_messagte_fail(capfd: pytest.CaptureFixture[str]) -> None:
 
     out, err = capfd.readouterr()
     assert err == ""
-    assert out == f"Error sending message to Player: Simulate send error"
+    assert out == "Error sending message to Player: Simulate send error"

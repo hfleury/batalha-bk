@@ -1,3 +1,5 @@
+"""Main application entry point for the Game server."""
+
 from fastapi import FastAPI
 
 from src.api.websocket_handler import router
