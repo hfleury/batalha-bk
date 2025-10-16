@@ -26,8 +26,32 @@ services:
       timeout: 5s
       retries: 5
 
+
   # ----------------------------------
-  # 2. Your Python Application Service
+  # 2. Redis Cache/Broker Service
+  # ---------------------------------
+  redis:
+    image: redis:8.2-alpine
+    container_name: batalha_redis
+    restart: unless-stopped
+    
+    env_file:
+      - .env
+      
+    ports:
+      - "6379:6379"
+      
+    volumes:
+      - redis_data:/data
+      
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+
+  # ----------------------------------
+  # 3. Your Python Application Service
   # ----------------------------------
   app:
     # Use the Dockerfile in the current directory
@@ -35,28 +59,24 @@ services:
       context: .
     container_name: batalha_app
     restart: unless-stopped
-    
-    # Load the same credentials from the .env file
+
     env_file:
       - .env
-      
-    # IMPORTANT: Use the service name 'db' as the database hostname/host
+
     environment:
       - DB_HOST=db
-      # Add any other required app variables here
+      - REDIS_HOST=redis
       
-    # Your app depends on the DB being built AND passing its health check
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
         
-    # Map a port if your Python app exposes a web/websocket interface (e.g., port 8000)
-    # ports:
-    #   - "8000:8000"
-    
-    # If using Poetry/Pylint/etc., your command might look like this:
-    # command: poetry run python src/main.py
+    ports:
+      - "8000:8000"
 
 # Define volumes for persistent storage
 volumes:
   psql_data:
+  redis_data:
