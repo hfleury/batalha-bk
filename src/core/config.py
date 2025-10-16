@@ -1,0 +1,108 @@
+"""
+Application configuration management using Pydantic and environment variables.
+
+This module defines the `Settings` class, which centralizes all configuration for the
+application (e.g., database, Redis, logging, environment mode) by loading values from
+environment variables. It supports different environments (development, staging, production)
+and provides sensible defaults where appropriate.
+
+Environment variables are loaded from a `.env` file if present (using `python-dotenv`),
+making local development easier.
+
+The settings are validated at startup using Pydantic, ensuring that:
+- Required fields are present.
+- Values are of the correct type (e.g., int, bool).
+- Allowed options (like environment name) are valid.
+"""
+
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
+from typing import Literal
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+Environment = Literal["local", "development", "production"]
+
+
+class DatabaseSettings(BaseSettings):
+    host: str = "db"
+    port: int = 5432
+    user: str = "batalha_user"
+    password: str = "nosecret"
+    database: str = "batalha_naval_db"
+
+    @property
+    def url(self) -> str:
+        return (
+            f"postgresql://{self.user}:{self.password}"
+            f"@{self.host}:{self.port}/{self.database}"
+        )
+
+    model_config = SettingsConfigDict(
+        env_prefix="POSTGRES_",
+        extra="ignore",
+    )
+
+
+class RedisSettings(BaseSettings):
+    host: str = "redis"
+    port: int = 6379
+    decode_responses: bool = True
+    username: str = "batalha_redis_user"
+    password: str = "nosecret"
+    db: int = 0
+
+    @property
+    def url(self) -> str:
+        return f"redis://{self.host}:{self.port}/{self.db}"
+
+    model_config = SettingsConfigDict(
+        env_prefix="REDIS_",
+        extra="ignore",
+    )
+
+
+class LoggingSettings(BaseSettings):
+    level: str = "INFO"
+
+    model_config = SettingsConfigDict(
+        env_prefix="LOGGING_",
+        extra="ignore",
+    )
+
+
+class AppSettings(BaseSettings):
+    environment: Environment = "local"
+    debug: bool = False
+
+    model_config = SettingsConfigDict(
+        env_prefix="APP_",
+        env_file=".env",
+        extra="ignore",
+    )
+
+    @property
+    def is_local(self) -> bool:
+        return self.environment == "local"
+
+    @property
+    def is_development(self) -> bool:
+        return self.environment == "development"
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
+
+class Settings:
+    """
+    Unified application settings composed of nested configuration objects.
+    """
+
+    app: AppSettings = AppSettings()
+    db: DatabaseSettings = DatabaseSettings()
+    redis: RedisSettings = RedisSettings()
+    log: LoggingSettings = LoggingSettings()
+
+
+settings = Settings()
