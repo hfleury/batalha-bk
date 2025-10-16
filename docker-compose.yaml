@@ -64,7 +64,7 @@ services:
       - .env
 
     environment:
-      - DB_HOST=db
+      - POSTGRES_HOST=db
       - REDIS_HOST=redis
       
     depends_on:
