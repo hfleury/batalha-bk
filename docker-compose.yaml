@@ -1,0 +1,62 @@
+services:
+  # ----------------------------------
+  # 1. PostgreSQL Database Service
+  # ----------------------------------
+  db:
+    image: postgres:18-alpine
+    container_name: batalha_db
+    restart: unless-stopped
+    
+    # Load credentials from the .env file
+    env_file:
+      - .env
+      
+    # Map the internal port 5432 (default for Postgres) to external port 5432
+    ports:
+      - "5432:5432"
+      
+    # Persist the database data outside the container
+    volumes:
+      - psql_data:/var/lib/postgresql/data
+      
+    # Health check to ensure the DB is ready before the app starts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------
+  # 2. Your Python Application Service
+  # ----------------------------------
+  app:
+    # Use the Dockerfile in the current directory
+    build: 
+      context: .
+    container_name: batalha_app
+    restart: unless-stopped
+    
+    # Load the same credentials from the .env file
+    env_file:
+      - .env
+      
+    # IMPORTANT: Use the service name 'db' as the database hostname/host
+    environment:
+      - DB_HOST=db
+      # Add any other required app variables here
+      
+    # Your app depends on the DB being built AND passing its health check
+    depends_on:
+      db:
+        condition: service_healthy
+        
+    # Map a port if your Python app exposes a web/websocket interface (e.g., port 8000)
+    # ports:
+    #   - "8000:8000"
+    
+    # If using Poetry/Pylint/etc., your command might look like this:
+    # command: poetry run python src/main.py
+
+# Define volumes for persistent storage
+volumes:
+  psql_data:
