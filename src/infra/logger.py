@@ -2,7 +2,7 @@
 
 import logging
 from typing import Any
-
+from src.core.config import settings
 import coloredlogs  # type: ignore
 
 TRACE_LEVEL: int = 5
@@ -35,25 +35,25 @@ def setup_logging() -> None:
     Configures the root logger to use `coloredlogs` for enhanced console output.
     """
     logger = logging.getLogger()
-    logger.setLevel(TRACE_LEVEL)
+    log_level = getattr(logging, settings.log.log_level.upper())
+    logger.setLevel(log_level)
 
-    fmt = "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+    fmt = settings.log.log_format
+    dateformat = settings.log.log_date_format
+    level_styles = settings.log.level_styles
+    field_styles = settings.log.field_styles
+    formatter = logging.Formatter(fmt, datefmt=dateformat)
 
-    coloredlogs.install(  # type: ignore
-        level=TRACE_LEVEL,
-        logger=logger,
-        fmt=fmt,
-        level_styles={
-            "trace": {"color": "magenta"},
-            "debug": {"color": "blue"},
-            "info": {"color": "green"},
-            "warning": {"color": "yellow"},
-            "error": {"color": "red"},
-            "critical": {"color": "red", "bold": True},
-        },
-        field_styles={
-            "asctime": {"color": "cyan"},
-            "levelname": {"bold": True},
-            "name": {"color": "white"},
-        },
-    )
+    if settings.log.should_install_coloredlogs:
+        coloredlogs.install(  # type: ignore
+            level=log_level,
+            logger=logger,
+            datefmt=dateformat,
+            fmt=fmt,
+            level_styles=level_styles or None,
+            field_styles=field_styles or None,
+        )
+    else:
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
