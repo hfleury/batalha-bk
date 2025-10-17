@@ -2,8 +2,11 @@
 
 import logging
 from typing import Any
-from src.core.config import settings
+
 import coloredlogs  # type: ignore
+
+from src.core.config import settings
+
 
 TRACE_LEVEL: int = 5
 

@@ -1,4 +1,5 @@
 """Main application entry point for the Game server."""
+
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -14,10 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def log_startup_info(app: FastAPI) -> AsyncGenerator[None, None]:
-    logger.info(
-        f"✅ Server starting in '{settings.app.environment}' mode"
-    )
+async def log_startup_info(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """
+    Log application startup information.
+
+    This function is a FastAPI lifespan event handler that logs key
+    configuration details when the server starts.
+    """
+    logger.info(f"✅ Server starting in '{settings.app.environment}' mode")
     logger.info(
         f"📊 Database: {settings.db.host}:{settings.db.port} | DB={settings.db.database}"
     )
@@ -30,7 +35,7 @@ app = FastAPI(
     title="Batalha Naval API",
     version="0.1.0",
     debug=settings.app.debug,
-    lifespan=log_startup_info
+    lifespan=log_startup_info,
 )
 app.include_router(router)
 

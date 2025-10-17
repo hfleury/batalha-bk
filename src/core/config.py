@@ -17,10 +17,11 @@ The settings are validated at startup using Pydantic, ensuring that:
 """
 
 from pathlib import Path
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Any, Literal
+
 from dotenv import load_dotenv
-from typing import Literal, Any
 from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 Environment = Literal["local", "development", "production"]
@@ -28,6 +29,8 @@ LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 class DatabaseSettings(BaseSettings):
+    """Configuration settings for the PostgreSQL database."""
+
     host: str = "db"
     port: int = 5432
     user: str = "batalha_user"
@@ -36,6 +39,7 @@ class DatabaseSettings(BaseSettings):
 
     @property
     def url(self) -> str:
+        """Constructs the full database connection URL."""
         return (
             f"postgresql://{self.user}:{self.password}"
             f"@{self.host}:{self.port}/{self.database}"
@@ -48,6 +52,8 @@ class DatabaseSettings(BaseSettings):
 
 
 class RedisSettings(BaseSettings):
+    """Configuration settings for the Redis cache."""
+
     host: str = "redis"
     port: int = 6379
     decode_responses: bool = True
@@ -57,6 +63,7 @@ class RedisSettings(BaseSettings):
 
     @property
     def url(self) -> str:
+        """Constructs the Redis connection URL."""
         return f"redis://{self.host}:{self.port}/{self.db}"
 
     model_config = SettingsConfigDict(
@@ -66,6 +73,8 @@ class RedisSettings(BaseSettings):
 
 
 class LoggingSettings(BaseSettings):
+    """Configuration settings for application logging."""
+
     log_level: LogLevel = "INFO"
     auto_install: bool = False
     log_format: str = "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
@@ -75,6 +84,7 @@ class LoggingSettings(BaseSettings):
 
     @property
     def should_install_coloredlogs(self) -> bool:
+        """Determines if colored logs should be installed based on the environment."""
         return settings.app.is_local or settings.app.is_development
 
     model_config = SettingsConfigDict(
@@ -84,6 +94,8 @@ class LoggingSettings(BaseSettings):
 
 
 class AppSettings(BaseSettings):
+    """General application settings."""
+
     environment: Environment = "local"
     debug: bool = False
 
@@ -95,14 +107,17 @@ class AppSettings(BaseSettings):
 
     @property
     def is_local(self) -> bool:
+        """Checks if the current environment is 'local'."""
         return self.environment == "local"
 
     @property
     def is_development(self) -> bool:
+        """Checks if the current environment is 'development'."""
         return self.environment == "development"
 
     @property
     def is_production(self) -> bool:
+        """Checks if the current environment is 'production'."""
         return self.environment == "production"
 
 
