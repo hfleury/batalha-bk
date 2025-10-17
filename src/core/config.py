@@ -3,7 +3,8 @@ Application configuration management using Pydantic and environment variables.
 
 This module defines the `Settings` class, which centralizes all configuration for the
 application (e.g., database, Redis, logging, environment mode) by loading values from
-environment variables. It supports different environments (development, staging, production)
+environment variables. It supports different environments
+(development, staging, production)
 and provides sensible defaults where appropriate.
 
 Environment variables are loaded from a `.env` file if present (using `python-dotenv`),
@@ -18,10 +19,12 @@ The settings are validated at startup using Pydantic, ensuring that:
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
-from typing import Literal
+from typing import Literal, Any
+from pydantic import Field
 
 load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 Environment = Literal["local", "development", "production"]
+LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 class DatabaseSettings(BaseSettings):
@@ -63,10 +66,19 @@ class RedisSettings(BaseSettings):
 
 
 class LoggingSettings(BaseSettings):
-    level: str = "INFO"
+    log_level: LogLevel = "INFO"
+    auto_install: bool = False
+    log_format: str = "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+    log_date_format: str = "%d-%m-%Y %H:%M:%S"
+    level_styles: dict[str, Any] = Field(default_factory=dict)
+    field_styles: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def should_install_coloredlogs(self) -> bool:
+        return settings.app.is_local or settings.app.is_development
 
     model_config = SettingsConfigDict(
-        env_prefix="LOGGING_",
+        env_prefix="COLOREDLOGS_",
         extra="ignore",
     )
 
