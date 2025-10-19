@@ -46,8 +46,8 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT id, username, email, created_at 
-                FROM players 
+                SELECT id, username, email, created_at
+                FROM players
                 WHERE username = $1
                 """,
                 username,
