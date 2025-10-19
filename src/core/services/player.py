@@ -1,9 +1,10 @@
 import uuid
+import logging
 from src.core.player.repositories import PlayerRegistrationRepository
 import re
 from passlib.context import CryptContext
 
-
+logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Define allowed format once
 VALID_USERNAME = re.compile(r"^[a-zA-Z0-9_]{3,32}$")
@@ -14,6 +15,8 @@ class PlayerRegistrationService:
         self.repo = repo
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        logger.debug(f"Verifying password for '{plain_password}' against hash")
+        logger.debug(f"Hashed password from DB: {hashed_password}")
         return pwd_context.verify(plain_password, hashed_password)
 
     def _hash_password(self, password: str) -> str:
@@ -49,3 +52,12 @@ class PlayerRegistrationService:
         hashed_password = self._hash_password(password)
 
         return await self.repo.register_player(username, email, hashed_password)
+
+    async def get_player_by_username(self, username: str):
+        """
+        Retrieve a player by username.
+
+        Returns:
+            Player object (dict or domain model), or None if not found.
+        """
+        return await self.repo.get_player_by_username(username)

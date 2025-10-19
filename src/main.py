@@ -1,6 +1,6 @@
 """Main application entry point for the Game server."""
 
-import asyncpg
+import asyncpg  # type: ignore
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -12,6 +12,7 @@ from src.api.v1.player_router import v1_router
 from src.api.websocket_handler import router
 from src.infra.logger import setup_logging
 from src.core.config import settings
+from src.api.v1 import auth_router
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("🚀 Starting up...")
 
     try:
-        pool = await asyncpg.create_pool(dsn=settings.db.url)
+        pool = await asyncpg.create_pool(dsn=settings.db.url)  # type: ignore
         app.state.db_pool = pool
         logger.info("🗄️ Connected to PostgreSQL")
     except Exception as e:
@@ -53,6 +54,7 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(v1_router)
+app.include_router(auth_router.router)
 
 
 @app.get("/")

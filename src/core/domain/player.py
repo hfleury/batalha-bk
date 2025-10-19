@@ -1,11 +1,10 @@
 """Domain model for a player."""
 
 import uuid
-from dataclasses import dataclass, field
+from pydantic import BaseModel
 
 
-@dataclass
-class Player:
+class Player(BaseModel):
     """Represents a player in the game.
 
     Attributes:
@@ -14,6 +13,7 @@ class Player:
         email: The player's email address.
     """
 
-    id: uuid.UUID = field(default_factory=uuid.uuid4)
-    username: str = field(default="")
-    email: str = field(default="")
+    id: uuid.UUID
+    username: str
+    email: str
+    password: str | None = None

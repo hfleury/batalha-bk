@@ -1,43 +1,51 @@
-# src/api/v1/auth_router.py
-from fastapi import APIRouter, HTTPException, status, Request
+import logging
+from fastapi import APIRouter, HTTPException, status, Request, Depends
+
 from src.core.schemas.auth_schema import LoginRequest, TokenResponse
-from src.core.secutiry import verify_password, create_access_token
+from src.core.security import create_access_token
+from src.core.services.player import PlayerRegistrationService
 from src.infra.psql.player_repo_impl import PostgresPlayerRegistrationRepository
 
+
 router = APIRouter(prefix="/api/v1", tags=["Authentication"])
+logger = logging.getLogger(__name__)
 
 
-@router.post("/login", response_model=TokenResponse)
+def get_player_service(request: Request) -> PlayerRegistrationService:
+    """Dependency: provides PlayerRegistrationService with live DB connection."""
+    pool = request.app.state.db_pool
+    repo = PostgresPlayerRegistrationRepository(pool)
+    return PlayerRegistrationService(repo)
+
+
+@router.post("/auth/login", response_model=TokenResponse)
 async def login_for_access_token(
-    request_data: LoginRequest, request: Request
+    request_data: LoginRequest,
+    request: Request,
+    service: PlayerRegistrationService = Depends(get_player_service),
 ) -> TokenResponse:
     """
     Authenticate user and return JWT token.
-    Expects JSON body with username and password.
+    Uses service layer for all business logic.
     """
-    # Get DB pool from app state
-    pool = request.app.state.db_pool
-    repo = PostgresPlayerRegistrationRepository(pool)
-
-    # Fetch player by username
-    player = await repo.get_player_by_username(request_data.username)
+    logger.debug("HENRIQUE FLEURY CARDOSO")
+    player = await service.get_player_by_username(request_data.username)
     if not player:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect username",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    logger.debug(f"Player found: {player}")
 
-    # Verify password
-    if not verify_password(request_data.password, player["hashed_password"]):
+    if not service.verify_password(request_data.password, player.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Create JWT token
     access_token = create_access_token(
-        data={"sub": str(player["id"]), "username": player["username"]}
+        data={"sub": str(player.id), "username": player.username}
     )
     return TokenResponse(access_token=access_token)

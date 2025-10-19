@@ -8,7 +8,7 @@ Players are persisted in PostgreSQL using a clean dependency flow:
 All routes are under the /api/v1 namespace.
 """
 
-import asyncpg
+import asyncpg  # type: ignore
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import AsyncGenerator

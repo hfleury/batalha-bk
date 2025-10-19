@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
+from src.core.domain.player import Player
 
 
 class PlayerRegistrationRepository(ABC):
@@ -8,14 +9,14 @@ class PlayerRegistrationRepository(ABC):
         self,
         username: str,
         email: str,
-        hashed_password: str,
+        password: str,
     ) -> UUID:
         """Create a new player and return their UUID."""
 
     @abstractmethod
-    async def get_player_by_id(self, player_id: UUID) -> dict | None:
+    async def get_player_by_id(self, player_id: UUID) -> Player:
         """Retrieve a player by ID."""
 
     @abstractmethod
-    async def get_player_by_username(self, username: str) -> dict | None:
+    async def get_player_by_username(self, username: str) -> Player:
         """Check if username exists."""
