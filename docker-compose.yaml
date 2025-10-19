@@ -17,11 +17,17 @@ services:
       
     # Persist the database data outside the container
     volumes:
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
       - psql_data:/var/lib/postgresql/data
       
     # Health check to ensure the DB is ready before the app starts
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: >
+        pg_isready
+        -h localhost
+        -U ${POSTGRES_USER}
+        -d ${POSTGRES_DB}
+        -p 5432
       interval: 5s
       timeout: 5s
       retries: 5
