@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.v1.player_router import v1_router
 from src.api.websocket_handler import router
@@ -41,6 +42,15 @@ app = FastAPI(
     debug=settings.app.debug,
     lifespan=lifespan,
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with your domain
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows POST, OPTIONS, etc.
+    allow_headers=["*"],
+)
+
 app.include_router(router)
 app.include_router(v1_router)
 

@@ -98,6 +98,7 @@ class AppSettings(BaseSettings):
 
     environment: Environment = "local"
     debug: bool = False
+    secret_key: str = "your-super-secret-key-change-in-production"
 
     model_config = SettingsConfigDict(
         env_prefix="APP_",
