@@ -45,7 +45,11 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
     async def get_player_by_username(self, username: str) -> dict | None:
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT id, username, email, created_at FROM players WHERE username = $1",
+                """
+                SELECT id, username, email, created_at 
+                FROM players 
+                WHERE username = $1
+                """,
                 username,
             )
             return dict(row) if row else None
