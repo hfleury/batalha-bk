@@ -14,7 +14,7 @@ class PlayerRegistrationService:
     def __init__(self, repo: PlayerRegistrationRepository):
         self.repo = repo
 
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+    def verify_password(self, plain_password: str, hashed_password: str | None) -> bool:
         logger.debug(f"Verifying password for '{plain_password}' against hash")
         logger.debug(f"Hashed password from DB: {hashed_password}")
         return pwd_context.verify(plain_password, hashed_password)

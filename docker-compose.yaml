@@ -17,7 +17,6 @@ services:
       
     # Persist the database data outside the container
     volumes:
-      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
       - psql_data:/var/lib/postgresql/data
       
     # Health check to ensure the DB is ready before the app starts
