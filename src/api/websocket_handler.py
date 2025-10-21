@@ -49,9 +49,9 @@ async def websocket_connection(websocket: WebSocket) -> None:
     conn_manager.add_player(player_conn)
 
     # await websocket.send_text(f"Welcome, Player {player_id}!")
-    await conn_manager.broadcast(
-        f"Player {player_id} has joined.", excluded_player_id=player_id
-    )
+    # await conn_manager.broadcast(
+    #    f"Player {player_id} has joined.", excluded_player_id=player_id
+    # )
 
     try:
         while True:
