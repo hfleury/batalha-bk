@@ -14,6 +14,6 @@ class Player(BaseModel):
     """
 
     id: uuid.UUID
-    username: str
-    email: str
+    username: str | None = None
+    email: str | None = None
     password: str | None = None

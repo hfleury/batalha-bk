@@ -43,7 +43,7 @@ async def websocket_connection(websocket: WebSocket) -> None:
     # the websocket server
     player_id = conn_manager.get_new_player_id()
     conn_websocket = WebSocketConnection(player_id, websocket)
-    player = Player(player_id)
+    player = Player(id=player_id)
     player_conn = PlayerConnection(player=player, connection=conn_websocket)
 
     conn_manager.add_player(player_conn)

@@ -68,6 +68,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=10000,
+        port=settings.app.port,
         reload=settings.app.is_development or settings.app.is_local,
     )
