@@ -1,5 +1,5 @@
 import asyncpg  # type: ignore
-from uuid import UUID
+from uuid import UUID, uuid4
 from src.core.player.repositories import PlayerRegistrationRepository
 from src.core.domain.player import Player
 
@@ -12,9 +12,9 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
         self,
         username: str,
         email: str,
-        hashed_password: str,
+        password: str,
     ) -> UUID:
-        async with self.pool.acquire() as conn:
+        async with self.pool.acquire() as conn:  # type: ignore
             try:
                 row = await conn.fetchrow(
                     """
@@ -24,42 +24,38 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
                     """,
                     username,
                     email,
-                    hashed_password,
+                    password,
                 )
-                return row["id"]
+                if row:
+                    return row["id"]
+                # This case should ideally not be hit if RETURNING id is used on a
+                # successful insert.
+                # But as a fallback, we can raise an error.
+                raise ValueError("Failed to register player, no ID returned.")
             except asyncpg.UniqueViolationError as e:
                 if "username" in str(e).lower():
                     raise ValueError(f"Username '{username}' is already taken.")
                 elif "email" in str(e).lower():
                     raise ValueError(f"Email '{email}' is already registered.")
                 else:
-                    raise ValueError("Player already exists.")
+                    # Re-raise with a more generic message if the specific column is
+                    # not identified
+                    raise ValueError(
+                        "A player with the given details already exists."
+                    ) from e
 
-    async def get_player_by_id(self, player_id: UUID) -> Player:
+    async def get_player_by_id(self, player_id: UUID) -> Player | None:
         async with self.pool.acquire() as conn:
-            try:
-                row = await conn.fetchrow(
-                    """
-                    INSERT INTO players (username, email, hashed_password)
-                    VALUES ($1, $2, $3)
-                    RETURNING id, username, email
-                    """,
-                    username,
-                    email,
-                    hashed_password,
-                )
+            row = await conn.fetchrow(
+                "SELECT id, username, email FROM players WHERE id = $1", player_id
+            )
+            if row:
                 return Player(
                     id=row["id"], username=row["username"], email=row["email"]
                 )
-            except asyncpg.UniqueViolationError as e:
-                if "username" in str(e).lower():
-                    raise ValueError(f"Username '{username}' is already taken.")
-                elif "email" in str(e).lower():
-                    raise ValueError(f"Email '{email}' is already registered.")
-                else:
-                    raise ValueError("Player already exists.")
+            return None
 
-    async def get_player_by_username(self, username: str) -> Player:
+    async def get_player_by_username(self, username: str) -> Player | None:
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
@@ -69,11 +65,11 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
                 """,
                 username,
             )
-            if not row:
-                return None
-        return Player(
-            id=row["id"],
-            username=row["username"],
-            email=row["email"],
-            password=row["password"],
-        )
+            if row:
+                return Player(
+                    id=row["id"],
+                    username=row["username"],
+                    email=row["email"],
+                    password=row["password"],
+                )
+        return None

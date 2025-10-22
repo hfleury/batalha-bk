@@ -10,6 +10,8 @@ from src.core.domain.game import GameSession
 from src.core.domain.player import Player
 from src.core.domain.ship import Ship
 from src.core.interface.game_repository import GameRepository
+from src.core.config import settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +27,11 @@ class GameRedisRepository(GameRepository):
     def __init__(self) -> None:
         # TODO: Move Redis connection details to environment variables/configuration.
         self.redis_client: aioredis.Redis = aioredis.Redis(
-            host="redis-18007.crce196.sa-east-1-2.ec2.redns.redis-cloud.com",
-            port=18007,
+            host=settings.redis.host,
+            port=settings.redis.port,
             decode_responses=True,
-            username="default",
-            password="fjwyDAlbXizVW7lFNdbYmLSUjoCT8ub6",
+            username=settings.redis.username,
+            password=settings.redis.password,
         )
 
     async def save_player_board(

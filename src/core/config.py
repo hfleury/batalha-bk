@@ -79,8 +79,8 @@ class LoggingSettings(BaseSettings):
     auto_install: bool = False
     log_format: str = "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
     log_date_format: str = "%d-%m-%Y %H:%M:%S"
-    level_styles: dict[str, Any] = Field(default_factory=dict)
-    field_styles: dict[str, Any] = Field(default_factory=dict)
+    level_styles: dict[str, Any] = Field(default_factory=dict[Any, Any])
+    field_styles: dict[str, Any] = Field(default_factory=dict[Any, Any])
 
     @property
     def should_install_coloredlogs(self) -> bool:
