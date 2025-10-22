@@ -5,6 +5,7 @@ from src.core.schemas.auth_schema import LoginRequest, TokenResponse
 from src.core.security import create_access_token
 from src.core.services.player import PlayerRegistrationService
 from src.infra.psql.player_repo_impl import PostgresPlayerRegistrationRepository
+from src.core.config import settings
 
 
 router = APIRouter(prefix="/api/v1", tags=["Authentication"])
@@ -28,7 +29,6 @@ async def login_for_access_token(
     Authenticate user and return JWT token.
     Uses service layer for all business logic.
     """
-    logger.debug("HENRIQUE FLEURY CARDOSO")
     player = await service.get_player_by_username(request_data.username)
     if not player:
         raise HTTPException(
@@ -36,7 +36,6 @@ async def login_for_access_token(
             detail="Incorrect username",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    logger.debug(f"Player found: {player}")
 
     if not service.verify_password(request_data.password, player.password):
         raise HTTPException(
@@ -46,6 +45,10 @@ async def login_for_access_token(
         )
 
     access_token = create_access_token(
-        data={"sub": str(player.id), "username": player.username}
+        data={
+            "sub": str(player.id),
+            "username": player.username,
+            "iss": settings.jwt.iss,
+        }
     )
     return TokenResponse(access_token=access_token)

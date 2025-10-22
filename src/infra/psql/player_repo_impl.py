@@ -1,5 +1,5 @@
 import asyncpg  # type: ignore
-from uuid import UUID, uuid4
+from uuid import UUID
 from src.core.player.repositories import PlayerRegistrationRepository
 from src.core.domain.player import Player
 
@@ -16,7 +16,7 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
     ) -> UUID:
         async with self.pool.acquire() as conn:  # type: ignore
             try:
-                row = await conn.fetchrow(
+                row = await conn.fetchrow(  # type: ignore
                     """
                     INSERT INTO players (username, email, password)
                     VALUES ($1, $2, $3)
@@ -44,7 +44,7 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
                         "A player with the given details already exists."
                     ) from e
 
-    async def get_player_by_id(self, player_id: UUID) -> Player | None:
+    async def get_player_by_id(self, player_id: UUID) -> Player:
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT id, username, email FROM players WHERE id = $1", player_id
@@ -53,9 +53,9 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
                 return Player(
                     id=row["id"], username=row["username"], email=row["email"]
                 )
-            return None
+            return Player()
 
-    async def get_player_by_username(self, username: str) -> Player | None:
+    async def get_player_by_username(self, username: str) -> Player:
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """

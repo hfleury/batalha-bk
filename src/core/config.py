@@ -122,6 +122,20 @@ class AppSettings(BaseSettings):
         return self.environment == "production"
 
 
+class JWTSSettings(BaseSettings):
+    """Configuration settings for JWT."""
+
+    secret_key: str = "your-super-secret-jwt-secret-key"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    iss: str = "batalha-naval-api"
+
+    model_config = SettingsConfigDict(
+        env_prefix="JWT_",
+        extra="ignore",
+    )
+
+
 class Settings:
     """
     Unified application settings composed of nested configuration objects.
@@ -131,6 +145,7 @@ class Settings:
     db: DatabaseSettings = DatabaseSettings()
     redis: RedisSettings = RedisSettings()
     log: LoggingSettings = LoggingSettings()
+    jwt: JWTSSettings = JWTSSettings()
 
 
 settings = Settings()
