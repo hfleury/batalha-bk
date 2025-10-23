@@ -1,3 +1,4 @@
+"""Player registration service containing business logic."""
 import uuid
 import logging
 import re
@@ -13,15 +14,20 @@ VALID_USERNAME = re.compile(r"^[a-zA-Z0-9_]{3,32}$")
 
 
 class PlayerRegistrationService:
+    """Handles the business logic for player registration."""
+
     def __init__(self, repo: PlayerRegistrationRepository):
+        """Initializes the service with a player repository."""
         self.repo = repo
 
     def verify_password(self, plain_password: str, hashed_password: str | None) -> bool:
+        """Verifies a plain password against a hashed one."""
         logger.debug(f"Verifying password for '{plain_password}' against hash")
         logger.debug(f"Hashed password from DB: {hashed_password}")
         return pwd_context.verify(plain_password, hashed_password)
 
     def _hash_password(self, password: str) -> str:
+        """Hashes a password using bcrypt."""
         max_bcrypt_input = 72
         if len(password.encode("utf-8")) > max_bcrypt_input:
             print(f"Password truncate to {max_bcrypt_input} bytes")
@@ -39,6 +45,7 @@ class PlayerRegistrationService:
         password: str,
         confirm_password: str,
     ) -> uuid.UUID:
+        """Registers a new player after validating input."""
         # Optional: validate input format here
         if not VALID_USERNAME.match(username):
             raise ValueError("Username must be alphanumeric")

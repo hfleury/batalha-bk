@@ -5,7 +5,7 @@ import re
 from typing import List
 
 from pydantic import BaseModel, field_validator, Field
-from .validators import ensure_uuid
+from src.api.v1.schemas.validators import ensure_uuid
 
 
 class StartGameRequest(BaseModel):
@@ -33,8 +33,6 @@ class FindGameRequest(BaseModel):
     player_id: uuid.UUID
     _validate_uuids = field_validator("player_id", mode="before")(ensure_uuid)
 
-
-"""Data validation schemas for player-related actions."""
 
 BOARD_SIZE = 15
 LETTERS = [chr(i) for i in range(ord("A"), ord("O") + 1)]

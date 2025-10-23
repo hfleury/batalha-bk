@@ -1,10 +1,13 @@
-import asyncpg  # type: ignore
+"""PostgreSQL implementation of the player registration repository."""
 from uuid import UUID
+import asyncpg  # type: ignore
 from src.application.repositories.player_repository import PlayerRegistrationRepository
 from src.domain.player import Player
 
 
 class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
+    """Manages player data in a PostgreSQL database."""
+
     def __init__(self, pool: asyncpg.Pool):
         self.pool: asyncpg.Pool = pool
 
@@ -34,15 +37,15 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
                 raise ValueError("Failed to register player, no ID returned.")
             except asyncpg.UniqueViolationError as e:
                 if "username" in str(e).lower():
-                    raise ValueError(f"Username '{username}' is already taken.")
-                elif "email" in str(e).lower():
-                    raise ValueError(f"Email '{email}' is already registered.")
-                else:
-                    # Re-raise with a more generic message if the specific column is
-                    # not identified
-                    raise ValueError(
-                        "A player with the given details already exists."
-                    ) from e
+                    raise ValueError(f"Username '{username}' is already taken.") from e
+                if "email" in str(e).lower():
+                    raise ValueError(f"Email '{email}' is already registered.") from e
+
+                # Re-raise with a more generic message if the specific column is
+                # not identified
+                raise ValueError(
+                    "A player with the given details already exists."
+                ) from e
 
     async def get_player_by_id(self, player_id: UUID) -> Player:
         async with self.pool.acquire() as conn:  # type: ignore

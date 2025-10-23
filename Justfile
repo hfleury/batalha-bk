@@ -28,7 +28,7 @@ format:
 lint:
     poetry run flake8 src/ tests/
     poetry run mypy src/
-    poetry run pylint --rcfile=.pylintrc src/ tests/
+    poetry run pylint --rcfile=.pylintrc $(git ls-files '*.py' | grep -v '^alembic/versions/')
 
 test1:
     fastapi dev main.py

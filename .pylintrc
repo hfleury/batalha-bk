@@ -1,5 +1,6 @@
 [MAIN]
 ignored-modules=coloredlogs, pytest
+ignore=alembic/versions
 
 [DESIGN]
 max-returns=12

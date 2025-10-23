@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException, status, Request, Depends
 
 from src.api.v1.schemas.auth_schema import LoginRequest, TokenResponse
 from src.infrastructure.security import create_access_token
-from src.domain.player import Player
 from src.infrastructure.persistence.player_repo_impl import (
     PostgresPlayerRegistrationRepository,
 )
@@ -33,7 +32,7 @@ async def login_for_access_token(
     Authenticate user and return JWT token.
     Uses service layer for all business logic.
     """
-    player: Player | None = await service.get_player_by_username(request_data.username)
+    player = await service.get_player_by_username(request_data.username)
     if not player:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

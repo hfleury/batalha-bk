@@ -1,9 +1,11 @@
+"""Defines the abstract repository for player registration."""
 from abc import ABC, abstractmethod
 from uuid import UUID
 from src.domain.player import Player
 
 
 class PlayerRegistrationRepository(ABC):
+    """Abstract base class for player registration data operations."""
     @abstractmethod
     async def register_player(
         self,

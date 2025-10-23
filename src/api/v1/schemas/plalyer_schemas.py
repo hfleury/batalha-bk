@@ -9,8 +9,8 @@ Note:
     which contains game-related models like ShipPlacement.
 """
 
-from pydantic import BaseModel, Field
 from typing import Annotated
+from pydantic import BaseModel, Field
 
 
 class PlayerRegisterRequest(BaseModel):

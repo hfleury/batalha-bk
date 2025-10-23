@@ -21,6 +21,7 @@ class Player(BaseModel):
 
     @classmethod
     def empty(cls) -> Self:
+        """Creates an empty Player instance."""
         return cls()
 
     model_config = {
