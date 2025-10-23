@@ -1,3 +1,4 @@
+"""Authentication routes for the API."""
 import logging
 from fastapi import APIRouter, HTTPException, status, Request, Depends
 
@@ -25,7 +26,7 @@ def get_player_service(request: Request) -> PlayerRegistrationService:
 @router.post("/auth/login", response_model=TokenResponse)
 async def login_for_access_token(
     request_data: LoginRequest,
-    request: Request,
+    _request: Request,
     service: PlayerRegistrationService = Depends(get_player_service),
 ) -> TokenResponse:
     """

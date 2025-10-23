@@ -7,19 +7,19 @@ Players are persisted in PostgreSQL using a clean dependency flow:
 
 All routes are under the /api/v1 namespace.
 """
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 import asyncpg  # type: ignore
-import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
-from typing import AsyncGenerator
-from contextlib import asynccontextmanager
 
-from .http_routes import v1_router
+from src.application.repositories.player_repository import PlayerRegistrationRepository
 from src.application.services.player import PlayerRegistrationService
 from src.infrastructure.persistence.player_repo_impl import (
     PostgresPlayerRegistrationRepository,
 )
-from src.application.repositories.player_repository import PlayerRegistrationRepository
+from .http_routes import v1_router
 from .schemas.plalyer_schemas import (
     PlayerRegisterRequest,
     PlayerRegisterResponse,
@@ -30,7 +30,8 @@ logger = logging.getLogger(__name__)
 
 # Optional: Add startup/shutdown logic if needed later
 @asynccontextmanager
-async def lifespan(router: APIRouter) -> AsyncGenerator[None, None]:
+async def lifespan(_router: APIRouter) -> AsyncGenerator[None, None]:
+    """Asynchronous context manager for managing the router's lifespan."""
     # You can add per-router setup/teardown here if needed
     yield
 
@@ -53,8 +54,8 @@ def get_player_registration_service(request: Request) -> PlayerRegistrationServi
         pool = request.app.state.db_pool
         if not pool:
             raise RuntimeError("Database pool not available in app state")
-    except AttributeError:
-        raise RuntimeError("Database pool not initialized")
+    except AttributeError as exc:
+        raise RuntimeError("Database pool not initialized") from exc
 
     # Create concrete repository and service
     repo: PlayerRegistrationRepository = PostgresPlayerRegistrationRepository(pool)
@@ -122,7 +123,7 @@ async def register_player(
 
     except ValueError as ve:
         # Business logic errors (e.g., invalid username, already exists)
-        raise HTTPException(status_code=400, detail=str(ve))
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
 
     except asyncpg.UniqueViolationError as ue:
         # Shouldn't happen due to service-layer check, but safe fallback
@@ -130,23 +131,22 @@ async def register_player(
             raise HTTPException(
                 status_code=400,
                 detail=f"Username '{request_body.username}' is already taken.",
-            )
-        elif "email" in str(ue).lower():
+            ) from ue
+        if "email" in str(ue).lower():
             raise HTTPException(
                 status_code=400,
                 detail=f"Email '{request_body.email}' is already registered.",
-            )
-        else:
-            raise HTTPException(status_code=400, detail="Player already exists.")
+            ) from ue
+
+        raise HTTPException(status_code=400, detail="Player already exists.") from ue
 
     except Exception as e:
         # Unexpected errors
-        logger = logging.getLogger("uvicorn")
         logger.error(f"Unexpected error during player registration: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred. Please try again later.",
-        )
+        ) from e
 
 
 # Optional: Health check specific to this router

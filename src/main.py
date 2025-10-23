@@ -1,30 +1,31 @@
 """Main application entry point for the Game server."""
 
-import asyncpg  # type: ignore
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import asyncpg  # type: ignore
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.v1 import auth_router
 from src.api.v1.player_router import v1_router
 from src.api.websocket_handler import router
-from src.infra.logger import setup_logging
 from src.config import settings
-from src.api.v1 import auth_router
+from src.infra.logger import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(appFast: FastAPI) -> AsyncGenerator[None, None]:
+    """Manage the application's lifespan, handling startup and shutdown events."""
     logger.info("🚀 Starting up...")
 
     try:
         pool = await asyncpg.create_pool(dsn=settings.db.url)  # type: ignore
-        app.state.db_pool = pool
+        appFast.state.db_pool = pool
         logger.info("🗄️ Connected to PostgreSQL")
     except Exception as e:
         logger.error(f"❌ Failed to connect to DB: {e}")
@@ -32,8 +33,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     yield  # Server runs here
 
-    if hasattr(app.state, "db_pool"):
-        await app.state.db_pool.close()
+    if hasattr(appFast.state, "db_pool"):
+        await appFast.state.db_pool.close()
         logger.info("🛑 PostgreSQL connection closed")
 
 
@@ -59,6 +60,7 @@ app.include_router(auth_router.router)
 
 @app.get("/")
 def read_root() -> dict[str, str]:
+    """Return a welcome message for the root endpoint."""
     return {"message": "Welcome to Batalha Naval", "docs": "/docs"}
 
 
