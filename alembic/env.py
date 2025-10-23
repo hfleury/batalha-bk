@@ -65,7 +65,10 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)  # pylint: disable=no-member
+        context.configure(  # pylint: disable=no-member
+            connection=connection,
+            target_metadata=target_metadata,
+        )
 
         with context.begin_transaction():  # pylint: disable=no-member
             context.run_migrations()  # pylint: disable=no-member
