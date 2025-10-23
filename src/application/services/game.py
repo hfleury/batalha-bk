@@ -252,7 +252,7 @@ class GameService:
         if player.id is None:
             return StandardResponse(
                 status="error",
-                message=f"Player not found",
+                message="Player not found",
                 action="resp_get_game_info",
                 data="",
             )
