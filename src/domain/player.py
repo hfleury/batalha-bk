@@ -1,8 +1,8 @@
 """Domain model for a player."""
 
 import uuid
-from pydantic import BaseModel
-from typing import Self
+from typing import Optional, Self
+from pydantic import BaseModel, Field
 
 
 class Player(BaseModel):
@@ -14,23 +14,15 @@ class Player(BaseModel):
         email: The player's email address.
     """
 
-    def __init__(
-        self,
-        id: uuid.UUID | None = None,
-        username: str | None = None,
-        email: str | None = None,
-        password: str | None = None,
-    ):
-        self.id = id
-        self.username = username
-        self.email = email
-        self.password = password
-
-    id: uuid.UUID | None = None
-    username: str | None = None
-    email: str | None = None
-    password: str | None = None
+    id: Optional[uuid.UUID] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = Field(default=None, exclude=True)
 
     @classmethod
     def empty(cls) -> Self:
         return cls()
+
+    model_config = {
+        "extra": "forbid",  # strict mode
+    }
