@@ -38,4 +38,4 @@ jobs:
     - name: Run Pylint (Deep Code Analysis)
       # Add --rcfile=.pylintrc to point Pylint to your configuration file
       run: |
-        poetry run pylint --rcfile=.pylintrc $(git ls-files '*.py')
+        poetry run pylint --rcfile=.pylintrc $(git ls-files '*.py' | grep -v '^alembic/')
