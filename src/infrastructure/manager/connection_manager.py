@@ -5,8 +5,8 @@ import logging
 import uuid
 from typing import Any
 
-from src.core.domain.player import Player
-from src.core.player.player_connection import PlayerConnection
+from src.domain.player import Player
+from src.infrastructure.connection.player_connection import PlayerConnection
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +24,13 @@ class ConnectionManager:
 
     def add_player(self, player_conn: PlayerConnection) -> None:
         """Add a player connection to the active player list."""
-        self.connected_players[player_conn.player.id] = player_conn
+        if player_conn.player.id is not None:
+            self.connected_players[player_conn.player.id] = player_conn
         logger.info(f"Player {player_conn.player.id} connected.")
 
-    def remove_player(self, player_id: uuid.UUID) -> None:
+    def remove_player(self, player_id: uuid.UUID | None) -> None:
         """Remove a player from the connection list by ID."""
-        if player_id in self.connected_players:
+        if player_id in self.connected_players and player_id is not None:
             del self.connected_players[player_id]
             logger.info(
                 f"Player {player_id} removed. Remaining: {len(self.connected_players)}"
@@ -37,7 +38,9 @@ class ConnectionManager:
 
     def get_player(self, player: Player) -> PlayerConnection | None:
         """Retrieve the PlayerConnection associated with a Player."""
-        return self.connected_players.get(player.id)
+        if player.id is not None:
+            return self.connected_players.get(player.id)
+        return None
 
     async def broadcast(
         self, message: str, excluded_player_id: uuid.UUID | None = None

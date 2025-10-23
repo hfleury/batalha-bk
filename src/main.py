@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.v1.player_router import v1_router
 from src.api.websocket_handler import router
 from src.infra.logger import setup_logging
-from src.core.config import settings
+from src.config import settings
 from src.api.v1 import auth_router
 
 setup_logging()

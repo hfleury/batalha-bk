@@ -1,8 +1,10 @@
 import uuid
 import logging
-from src.core.player.repositories import PlayerRegistrationRepository
 import re
-from passlib.context import CryptContext
+from passlib.context import CryptContext  # type: ignore
+from src.application.repositories.player_repository import PlayerRegistrationRepository
+from src.domain.player import Player
+
 
 logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -42,7 +44,7 @@ class PlayerRegistrationService:
             raise ValueError("Username must be alphanumeric")
 
         # Check if user already exists
-        existing = await self.repo.get_player_by_username(username)
+        existing: Player = await self.repo.get_player_by_username(username)
         if existing:
             raise ValueError(f"Username '{username}' is already taken")
 
@@ -53,7 +55,7 @@ class PlayerRegistrationService:
 
         return await self.repo.register_player(username, email, hashed_password)
 
-    async def get_player_by_username(self, username: str):
+    async def get_player_by_username(self, username: str) -> Player:
         """
         Retrieve a player by username.
 

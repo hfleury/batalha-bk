@@ -3,9 +3,9 @@
 import uuid
 from abc import ABC, abstractmethod
 
-from src.core.domain.game import GameSession
-from src.core.domain.player import Player
-from src.core.domain.ship import Ship
+from src.domain.game import GameSession
+from src.domain.player import Player
+from src.domain.ship import Ship
 
 
 class GameRepository(ABC):

@@ -7,19 +7,19 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from src.core.domain.game import GameSession, GameStatus, PlayerBoard
-from src.core.domain.player import Player
-from src.core.domain.ship import Ship
-from src.core.interface.game_repository import GameRepository
-from src.core.manager.connection_manager import ConnectionManager
-from src.core.schemas.game_actions import (
+from src.domain.game import GameSession, GameStatus, PlayerBoard
+from src.domain.player import Player
+from src.domain.ship import Ship
+from src.application.repositories.game_repository import GameRepository
+from src.infrastructure.manager.connection_manager import ConnectionManager
+from src.api.v1.schemas.game_actions import (
     FindGameRequest,
     ShootRequest,
     StartGameRequest,
 )
-from src.core.schemas.place_ships import ShipPlacementRequest, StandardResponse
-from src.core.schemas.player_info import PlayerInfoRequest
-from src.core.serializer.ship import parse_ships
+from src.api.v1.schemas.place_ships import ShipPlacementRequest, StandardResponse
+from src.api.v1.schemas.player_info import PlayerInfoRequest
+from src.application.ship import parse_ships
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +249,13 @@ class GameService:
             )
 
         player = Player(id=request.player_id)
+        if player.id is None:
+            return StandardResponse(
+                status="error",
+                message=f"Player not found",
+                action="resp_get_game_info",
+                data="",
+            )
         rtn_player_info = StandardResponse(
             status="OK",
             message=f"player: {request.player_id} info for game: {request.game_id}",
@@ -287,7 +294,7 @@ class GameService:
                 )
 
             shooter = Player(id=request.player_id)
-            opponent_id = await self.repository.get_opponent_id(
+            opponent_id: uuid.UUID | None = await self.repository.get_opponent_id(
                 request.game_id, shooter
             )
             if opponent_id is None:

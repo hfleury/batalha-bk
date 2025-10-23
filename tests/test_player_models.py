@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
 
-from src.core.player.models import WebSocketConnection
+from src.infrastructure.connection.websocket import WebSocketConnection
 
 
 def test_websocket_connection_init() -> None:

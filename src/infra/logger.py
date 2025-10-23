@@ -5,7 +5,7 @@ from typing import Any
 
 import coloredlogs  # type: ignore
 
-from src.core.config import settings
+from src.config import settings
 
 
 TRACE_LEVEL: int = 5

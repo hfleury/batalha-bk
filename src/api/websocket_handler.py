@@ -6,11 +6,13 @@ import uuid
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from src.core.manager.connection_manager import ConnectionManager
-from src.core.player.models import WebSocketConnection
-from src.core.player.player_connection import Player, PlayerConnection
-from src.core.services.game import GameService
-from src.infra.redis.game_repo_impl import GameRedisRepository
+from src.infrastructure.manager.connection_manager import ConnectionManager
+from src.infrastructure.connection.websocket import WebSocketConnection
+from src.infrastructure.connection.player_connection import PlayerConnection
+from src.domain.player import Player
+from src.application.services.game import GameService
+from src.infrastructure.persistence.game_repo_impl import GameRedisRepository
+from src.api.v1.schemas.place_ships import StandardResponse
 
 router = APIRouter()
 conn_manager = ConnectionManager()
@@ -60,7 +62,9 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 payload = json.loads(data)
                 action = payload.get("action")
 
-                response = await game_service.handle_action(action, payload, player)
+                response: StandardResponse = await game_service.handle_action(
+                    action, payload, player
+                )
                 await websocket.send_json(response.to_json())
 
             except json.JSONDecodeError as e:

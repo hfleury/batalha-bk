@@ -3,7 +3,7 @@
 import uuid
 
 from pydantic import BaseModel, field_validator
-from src.core.schemas.validators import ensure_uuid
+from .validators import ensure_uuid
 
 
 class PlayerInfoRequest(BaseModel):

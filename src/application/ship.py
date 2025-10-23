@@ -1,6 +1,6 @@
 """Utility function for parsing ship data from raw formats."""
 
-from src.core.domain.ship import Ship
+from src.domain.ship import Ship
 
 
 def parse_ships(raw_ships: dict[str, list[str]]) -> list[Ship]:

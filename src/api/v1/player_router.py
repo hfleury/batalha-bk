@@ -15,10 +15,12 @@ from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from .http_routes import v1_router
-from src.core.services.player import PlayerRegistrationService
-from src.infra.psql.player_repo_impl import PostgresPlayerRegistrationRepository
-from src.core.player.repositories import PlayerRegistrationRepository
-from src.core.schemas.plalyer_schemas import (
+from src.application.services.player import PlayerRegistrationService
+from src.infrastructure.persistence.player_repo_impl import (
+    PostgresPlayerRegistrationRepository,
+)
+from src.application.repositories.player_repository import PlayerRegistrationRepository
+from .schemas.plalyer_schemas import (
     PlayerRegisterRequest,
     PlayerRegisterResponse,
 )

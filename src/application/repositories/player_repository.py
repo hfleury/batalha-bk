@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
-from src.core.domain.player import Player
+from src.domain.player import Player
 
 
 class PlayerRegistrationRepository(ABC):

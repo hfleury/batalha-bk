@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError  # type: ignore
 from typing import Optional, Any
-from src.core.config import settings
+from src.config import settings
 
 # JWT config
 SECRET_KEY = settings.jwt.secret_key

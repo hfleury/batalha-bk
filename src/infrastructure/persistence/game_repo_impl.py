@@ -6,11 +6,11 @@ import uuid
 
 import redis.asyncio as aioredis
 
-from src.core.domain.game import GameSession
-from src.core.domain.player import Player
-from src.core.domain.ship import Ship
-from src.core.interface.game_repository import GameRepository
-from src.core.config import settings
+from src.domain.game import GameSession
+from src.domain.player import Player
+from src.domain.ship import Ship
+from src.application.repositories.game_repository import GameRepository
+from src.config import settings
 
 
 logger = logging.getLogger(__name__)
