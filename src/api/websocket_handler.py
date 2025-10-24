@@ -23,41 +23,58 @@ logger = logging.getLogger(__name__)
 
 @router.websocket("/ws/connect")
 async def websocket_connection(websocket: WebSocket) -> None:
-    """Handles the WebSocket connection for a player.
-
-    This function manages the entire lifecycle of a player's WebSocket connection.
-    It accepts a new connection, assigns a player ID, and adds the player to the
-    connection manager. It then enters a loop to listen for incoming messages
-    (actions) from the player, processes them through the `game_service`, and
-    sends back responses.
-
-    It also handles disconnection events, ensuring that the player is cleanly
-    removed from the game and connection manager.
-
-    Args:
-        websocket (WebSocket): The WebSocket connection instance for the client.
-    """
+    """Handles the WebSocket connection for a player."""
     trace_id = str(uuid.uuid4())
     logger.info(f"[{trace_id}] New connection established")
     await websocket.accept()
 
-    # TODO remove it because the player ID will come before connect to
-    # the websocket server
-    player_id = conn_manager.get_new_player_id()
-    conn_websocket = WebSocketConnection(player_id, websocket)
-    player = Player(id=player_id)
-    player_conn = PlayerConnection(player=player, connection=conn_websocket)
-
-    conn_manager.add_player(player_conn)
-
-    # await websocket.send_text(f"Welcome, Player {player_id}!")
-    # await conn_manager.broadcast(
-    #    f"Player {player_id} has joined.", excluded_player_id=player_id
-    # )
+    player_id = None
+    player_conn = None
 
     try:
-        while True:
+        # Wait for the first message to get player_id
+        data = await websocket.receive_text()
+        try:
+            payload = json.loads(data)
+            player_id_str = payload.get("player_id")
+
+            if not player_id_str:
+                await websocket.send_json({
+                    "status": "error",
+                    "message": "player_id is required in first message"
+                })
+                await websocket.close()
+                return
+
+            # Convert string to UUID object
             try:
+                player_id = uuid.UUID(player_id_str)
+            except ValueError:
+                await websocket.send_json({
+                    "status": "error",
+                    "message": "Invalid player_id format. Must be a valid UUID."
+                })
+                await websocket.close()
+                return
+
+            # Initialize player and connection with UUID object
+            conn_websocket = WebSocketConnection(player_id, websocket)
+            player = Player(id=player_id)  # Now passing UUID object
+            player_conn = PlayerConnection(player=player, connection=conn_websocket)
+            conn_manager.add_player(player_conn)
+
+            logger.info(f"[{trace_id}] Player {player_id} connected and registered")
+
+            # Process the initial action if present
+            action = payload.get("action")
+            if action:
+                response: StandardResponse = await game_service.handle_action(
+                    action, payload, player
+                )
+                await websocket.send_json(response.to_json())
+
+            # Continue listening for subsequent messages
+            while True:
                 data = await websocket.receive_text()
                 payload = json.loads(data)
                 action = payload.get("action")
@@ -67,22 +84,28 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 )
                 await websocket.send_json(response.to_json())
 
-            except json.JSONDecodeError as e:
-                logger.error(f"[{trace_id}] Invalid JSON ERROR: {e}")
-                await websocket.send_json(
-                    {"status": "error", "message": "Invalid JSON format"}
-                )
+        except json.JSONDecodeError as e:
+            logger.error(f"[{trace_id}] Invalid JSON ERROR: {e}")
+            await websocket.send_json(
+                {"status": "error", "message": "Invalid JSON format"}
+            )
+            await websocket.close()
+            return
+
     except WebSocketDisconnect as e:
-        logger.error(f"[{trace_id}] Disconnected {e}")
-        queue_key = "matchmaking:queue"
-        await game_repo.pop_from_queue(queue_key, player_id)
-        conn_manager.remove_player(player_id)
-        await conn_manager.broadcast(f"Player {player_id} has left.")
+        logger.info(f"[{trace_id}] Player {player_id} disconnected: {e}")
+        if player_id:
+            queue_key = "matchmaking:queue"
+            # Convert back to string for Redis
+            await game_repo.pop_from_queue(queue_key, player_id)
+            conn_manager.remove_player(player_id)
+            await conn_manager.broadcast(f"Player {player_id} has left.")
     except Exception as e:
-        logger.debug("HENRIQUE FLEURY CARDOSO")
-        logger.error(f"[{trace_id}] ERROR {e}")
-        queue_key = "matchmaking:queue"
-        await game_repo.pop_from_queue(queue_key, player_id)
-        conn_manager.remove_player(player_id)
-        await websocket.send_json({"status": "error", "message": str(e)})
-        await conn_manager.broadcast(f"Player {str(player_id)} has left due to error.")
+        logger.error(f"[{trace_id}] ERROR for player {player_id}: {e}")
+        if player_id:
+            queue_key = "matchmaking:queue"
+            # Convert back to string for Redis
+            await game_repo.pop_from_queue(queue_key, player_id)
+            conn_manager.remove_player(player_id)
+            await websocket.send_json({"status": "error", "message": str(e)})
+            await conn_manager.broadcast(f"Player {player_id} has left due to error.")

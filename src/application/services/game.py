@@ -137,7 +137,7 @@ class GameService:
                 return StandardResponse(
                     status="error",
                     message=f"Invalid request payload: {e}",
-                    action="resp_find_game_session",
+                    action="error_find_game_session",
                     data="",
                 )
             return await self.find_game_session(req_find_game_session)
@@ -146,7 +146,7 @@ class GameService:
             return StandardResponse(
                 status="error",
                 message=f"Unknown action: {action}",
-                action=f"resp_{action}",
+                action=f"error_{action}",
                 data="",
             )
 
@@ -393,7 +393,7 @@ class GameService:
                 start_datetime=now,
                 end_datetime=0,
                 players={
-                    opponent_player_id: PlayerBoard(),
+                    # opponent_player_id: PlayerBoard(),
                     player.player_id: PlayerBoard(),
                 },
                 current_turn=current_turn,
@@ -407,7 +407,7 @@ class GameService:
 
             # Notify both player the game started
             notify_payload = StandardResponse(
-                status="OK",
+                status="ready",
                 message="Game has started",
                 action="res_find_game_session",
                 data=game_data.to_serializable_dict(),
@@ -417,9 +417,9 @@ class GameService:
             await self.conn_manager.send_to_player(player.player_id, notify_payload)
 
             return StandardResponse(
-                status="OK",
+                status="waiting",
                 message="Game session created",
-                action="res_find_game_session",
+                action="waiting_find_game_session",
                 data=game_data,
             )
 

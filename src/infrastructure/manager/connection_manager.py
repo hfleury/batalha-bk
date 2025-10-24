@@ -18,10 +18,6 @@ class ConnectionManager:
         self.connected_players: dict[uuid.UUID, PlayerConnection] = {}
         self.max_players = max_players
 
-    def get_new_player_id(self) -> uuid.UUID:
-        """Generate a new unique player ID using UUID4."""
-        return uuid.uuid4()
-
     def add_player(self, player_conn: PlayerConnection) -> None:
         """Add a player connection to the active player list."""
         if player_conn.player.id is not None:
