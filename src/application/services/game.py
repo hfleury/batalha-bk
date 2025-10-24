@@ -381,7 +381,6 @@ class GameService:
         logger.debug(f"The opponent_player_id {opponent_player_id}")
 
         if opponent_player_id:
-
             await self.repository.pop_from_queue(queue_key, opponent_player_id)
             logger.info(f"ESTA AQUIIII {opponent_player_id}")
             game_id = uuid.uuid4()
@@ -393,7 +392,7 @@ class GameService:
                 start_datetime=now,
                 end_datetime=0,
                 players={
-                    # opponent_player_id: PlayerBoard(),
+                    opponent_player_id: PlayerBoard(),
                     player.player_id: PlayerBoard(),
                 },
                 current_turn=current_turn,
@@ -405,22 +404,53 @@ class GameService:
             except Exception as e:
                 logger.error(f"Game Not saved ERROR: {e}")
 
-            # Notify both player the game started
-            notify_payload = StandardResponse(
+            # Create player-specific game data (hide opponent info)
+            def create_player_game_data(
+                game_session: GameSession,
+                player_id: uuid.UUID
+            ) -> dict[str, Any]:
+                """Create game data payload specific
+                to a player (hides opponent info).
+                """
+                return {
+                    "game_id": str(game_session.game_id),
+                    "start_datetime": game_session.start_datetime,
+                    "end_datetime": game_session.end_datetime,
+                    "players": {
+                        str(player_id): game_session.players[player_id].model_dump()
+                    },
+                    "current_turn": str(game_session.current_turn),
+                    "status": game_session.status.value
+                }
+
+            # Create separate payloads for each player
+            current_player_payload = StandardResponse(
                 status="ready",
                 message="Game has started",
                 action="res_find_game_session",
-                data=game_data.to_serializable_dict(),
+                data=create_player_game_data(game_data, player.player_id),
             ).to_dict()
 
-            await self.conn_manager.send_to_player(player.player_id, notify_payload)
-            await self.conn_manager.send_to_player(player.player_id, notify_payload)
+            opponent_payload = StandardResponse(
+                status="ready",
+                message="Game has started",
+                action="res_find_game_session",
+                data=create_player_game_data(game_data, opponent_player_id),
+            ).to_dict()
 
+            # Send player-specific payloads
+            await self.conn_manager.send_to_player(
+                player.player_id,
+                current_player_payload
+            )
+            await self.conn_manager.send_to_player(opponent_player_id, opponent_payload)
+
+            # Return response for the current player (the one who made the request)
             return StandardResponse(
                 status="waiting",
                 message="Game session created",
                 action="waiting_find_game_session",
-                data=game_data,
+                data=create_player_game_data(game_data, player.player_id),
             )
 
         # No player waiting, put current player in queue

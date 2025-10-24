@@ -59,7 +59,7 @@ async def websocket_connection(websocket: WebSocket) -> None:
 
             # Initialize player and connection with UUID object
             conn_websocket = WebSocketConnection(player_id, websocket)
-            player = Player(id=player_id)  # Now passing UUID object
+            player = Player(id=player_id)
             player_conn = PlayerConnection(player=player, connection=conn_websocket)
             conn_manager.add_player(player_conn)
 
@@ -68,10 +68,10 @@ async def websocket_connection(websocket: WebSocket) -> None:
             # Process the initial action if present
             action = payload.get("action")
             if action:
-                response: StandardResponse = await game_service.handle_action(
+                initial_response: StandardResponse = await game_service.handle_action(
                     action, payload, player
                 )
-                await websocket.send_json(response.to_json())
+                await websocket.send_json(initial_response.to_json())
 
             # Continue listening for subsequent messages
             while True:
@@ -79,10 +79,10 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 payload = json.loads(data)
                 action = payload.get("action")
 
-                response: StandardResponse = await game_service.handle_action(
+                handle_response: StandardResponse = await game_service.handle_action(
                     action, payload, player
                 )
-                await websocket.send_json(response.to_json())
+                await websocket.send_json(handle_response.to_json())
 
         except json.JSONDecodeError as e:
             logger.error(f"[{trace_id}] Invalid JSON ERROR: {e}")
@@ -96,7 +96,6 @@ async def websocket_connection(websocket: WebSocket) -> None:
         logger.info(f"[{trace_id}] Player {player_id} disconnected: {e}")
         if player_id:
             queue_key = "matchmaking:queue"
-            # Convert back to string for Redis
             await game_repo.pop_from_queue(queue_key, player_id)
             conn_manager.remove_player(player_id)
             await conn_manager.broadcast(f"Player {player_id} has left.")
@@ -104,8 +103,9 @@ async def websocket_connection(websocket: WebSocket) -> None:
         logger.error(f"[{trace_id}] ERROR for player {player_id}: {e}")
         if player_id:
             queue_key = "matchmaking:queue"
-            # Convert back to string for Redis
             await game_repo.pop_from_queue(queue_key, player_id)
             conn_manager.remove_player(player_id)
-            await websocket.send_json({"status": "error", "message": str(e)})
+            await websocket.send_json(
+                {"status": "error", "message": str(e)}
+            )
             await conn_manager.broadcast(f"Player {player_id} has left due to error.")

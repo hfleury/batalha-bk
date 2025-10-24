@@ -14,6 +14,7 @@ class GameStatus(str, Enum):
     WAITING = "waiting"
     IN_PROGRESS = "in_progress"
     FINISHED = "finished"
+    PLACE_SHIP = "place_ship"
 
 
 class PlayerBoard(BaseModel):
@@ -38,7 +39,7 @@ class GameSession(BaseModel):
     start_datetime: int = Field(default_factory=lambda: int(time.time()))
     end_datetime: int = 0
     players: dict[uuid.UUID, PlayerBoard]
-    current_turn: uuid.UUID
+    current_turn: uuid.UUID | None = None
     status: GameStatus = GameStatus.WAITING
 
     def to_serializable_dict(self) -> dict[str, Any]:
