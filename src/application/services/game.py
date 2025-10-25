@@ -416,9 +416,7 @@ class GameService:
                     "game_id": str(game_session.game_id),
                     "start_datetime": game_session.start_datetime,
                     "end_datetime": game_session.end_datetime,
-                    "players": {
-                        str(player_id): game_session.players[player_id].model_dump()
-                    },
+                    "players": (str(player_id)),
                     "current_turn": str(game_session.current_turn),
                     "status": game_session.status.value
                 }

@@ -12,7 +12,7 @@ from src.api.v1 import auth_router
 from src.api.v1.player_router import v1_router
 from src.api.websocket_handler import router
 from src.config import settings
-from src.infra.logger import setup_logging
+from src.infrastructure.logger import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
