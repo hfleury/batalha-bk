@@ -61,8 +61,8 @@ This action allows a player to join the matchmaking queue and either start a new
 **Request Example**
 ```json
 {
-  "action": "find_game_session",
-  "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc"
+    "action": "find_game_session",
+    "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc"
 }
 ```
 *Note: `player_id` should be a UUID string.*
@@ -72,28 +72,27 @@ This action allows a player to join the matchmaking queue and either start a new
 - **If a game session is created:**
     ```json
     {
-      "status": "OK",
-      "message": "Game session created",
-      "action": "res_find_game_session",
-      "data": {
-        "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0",
-        "start_datetime": 1717600000,
-        "end_datetime": 0,
-        "players": {
-          "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc": {},
-          "a1b2c3d4-5678-90ab-cdef-1234567890ab": {}
+        "status": "ready",
+        "message": "Game has started",
+        "action": "res_find_game_session",
+        "data": {
+            "game_id": "369a2125-fe46-45cb-86d1-816d0c96027d",
+            "start_datetime": 1761393417,
+            "end_datetime": 0,
+            "players": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
+            "current_turn": "b7e6a1c2-3d4f-4e5a-8b9c-123456789000",
+            "status": "in_progress"
         }
-      }
     }
     ```
 
 - **If waiting for another player:**
     ```json
     {
-      "status": "OK",
-      "message": "Waiting for another player",
-      "action": "res_find_game_session",
-      "data": ""
+        "status": "OK",
+        "message": "Waiting for another player",
+        "action": "res_find_game_session",
+        "data": ""
     }
     ```
 

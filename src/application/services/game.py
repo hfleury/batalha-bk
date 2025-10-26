@@ -457,7 +457,7 @@ class GameService:
             player.player_id,
         )
         return StandardResponse(
-            status="OK",
+            status="waiting",
             message="Waiting for another player",
             action="res_find_game_session",
             data="",
