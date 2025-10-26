@@ -71,7 +71,7 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 initial_response: StandardResponse = await game_service.handle_action(
                     action, payload, player
                 )
-                await websocket.send_json(initial_response.to_json())
+                await websocket.send_json(initial_response)
 
             # Continue listening for subsequent messages
             while True:
@@ -82,7 +82,7 @@ async def websocket_connection(websocket: WebSocket) -> None:
                 handle_response: StandardResponse = await game_service.handle_action(
                     action, payload, player
                 )
-                await websocket.send_json(handle_response.to_json())
+                await websocket.send_json(handle_response)
 
         except json.JSONDecodeError as e:
             logger.error(f"[{trace_id}] Invalid JSON ERROR: {e}")

@@ -89,10 +89,12 @@ This action allows a player to join the matchmaking queue and either start a new
 - **If waiting for another player:**
     ```json
     {
-        "status": "OK",
+        "status": "waiting",
         "message": "Waiting for another player",
         "action": "res_find_game_session",
-        "data": ""
+        "data": {
+            "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
+        },
     }
     ```
 
