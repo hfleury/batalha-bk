@@ -427,7 +427,7 @@ class GameService:
                 message="Game has started",
                 action="res_find_game_session",
                 data=create_player_game_data(game_data, player.player_id),
-            ).to_dict()
+            )
 
             opponent_payload = StandardResponse(
                 status="ready",
@@ -437,19 +437,14 @@ class GameService:
             ).to_dict()
 
             # Send player-specific payloads
-            await self.conn_manager.send_to_player(
-                player.player_id,
-                current_player_payload
-            )
+            # await self.conn_manager.send_to_player(
+            #    player.player_id,
+            #    current_player_payload
+            # )
             await self.conn_manager.send_to_player(opponent_player_id, opponent_payload)
 
             # Return response for the current player (the one who made the request)
-            return StandardResponse(
-                status="waiting",
-                message="Game session created",
-                action="waiting_find_game_session",
-                data=create_player_game_data(game_data, player.player_id),
-            )
+            return current_player_payload
 
         # No player waiting, put current player in queue
         await self.repository.push_to_queue(
