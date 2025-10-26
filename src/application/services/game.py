@@ -460,7 +460,7 @@ class GameService:
             status="waiting",
             message="Waiting for another player",
             action="res_find_game_session",
-            data=player.player_id,
+            data=str(player.player_id),
         )
 
     def _get_next_player(self, game: GameSession, current_id: uuid.UUID) -> uuid.UUID:
