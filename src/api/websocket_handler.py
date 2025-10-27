@@ -3,7 +3,6 @@
 import json
 import logging
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -106,7 +105,7 @@ async def websocket_connection(websocket: WebSocket) -> None:
 
     player_id = None
     player = None
-    e = None
+    e: BaseException | None = None  # type: ignore
 
     try:
         player_id, player = await _register_player(websocket, trace_id)
@@ -118,17 +117,12 @@ async def websocket_connection(websocket: WebSocket) -> None:
 
     except WebSocketDisconnect as e:
         logger.info(f"[{trace_id}] Player {player_id} disconnected: {e}")
-    except Exception as e:
-        logger.error(f"[{trace_id}] ERROR for player {player_id}: {e}")
+    except Exception as exc:
+        logger.error(f"[{trace_id}] ERROR for player {player_id}: {exc}")
         if websocket.client_state.name == "CONNECTED":
-            await websocket.send_json({"status": "error", "message": str(e)})
+            await websocket.send_json({"status": "error", "message": str(exc)})
     finally:
         if player_id:
             queue_key = "matchmaking:queue"
             await game_repo.pop_from_queue(queue_key, player_id)
             conn_manager.remove_player(player_id)
-
-            if e is not None and not isinstance(e, WebSocketDisconnect):
-                await conn_manager.broadcast(
-                    f"Player {player_id} has left due to error."
-                )

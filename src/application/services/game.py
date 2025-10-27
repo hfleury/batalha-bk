@@ -168,9 +168,9 @@ class GameService:
         await self.repository.save_player_board(request.game_id, player, request.ships)
 
         return StandardResponse(
-            status="OK",
+            status="shipsPlaced",
             message=f"Ships placed for player {player.id}",
-            action="resp_place_ships",
+            action="place_ship_response",
             data="",
         )
 
@@ -413,7 +413,8 @@ class GameService:
                     "end_datetime": game_session.end_datetime,
                     "players": (str(player_id)),
                     "current_turn": str(game_session.current_turn),
-                    "status": game_session.status.value
+                    "status": game_session.status.value,
+                    "first_turn": str(game_session.current_turn),
                 }
 
             # Create separate payloads for each player

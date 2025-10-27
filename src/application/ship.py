@@ -1,5 +1,6 @@
 """Utility function for parsing ship data from raw formats."""
 import logging
+from typing import Any
 
 from src.api.v1.schemas.place_ships import ShipDetails
 from typing import List
@@ -7,7 +8,7 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 
-def parse_ships(raw_ships: List[dict[str, any]]) -> List[ShipDetails]:
+def parse_ships(raw_ships: List[dict[str, Any]]) -> List[ShipDetails]:
     """Parses a dictionary of raw ship data into a list of Ship domain objects.
 
     Args:
