@@ -1,9 +1,13 @@
 """Utility function for parsing ship data from raw formats."""
+import logging
 
-from src.domain.ship import Ship
+from src.api.v1.schemas.place_ships import ShipDetails
+from typing import List
+
+logger = logging.getLogger(__name__)
 
 
-def parse_ships(raw_ships: dict[str, list[str]]) -> list[Ship]:
+def parse_ships(raw_ships: List[dict[str, any]]) -> List[ShipDetails]:
     """Parses a dictionary of raw ship data into a list of Ship domain objects.
 
     Args:
@@ -16,11 +20,16 @@ def parse_ships(raw_ships: dict[str, list[str]]) -> list[Ship]:
     Returns:
         A list of Ship objects.
     """
-    ships: list[Ship] = []
+    ships: List[ShipDetails] = []
+    logger.debug(f"Raw ships: {raw_ships}")
+    for raw_ship in raw_ships:
+        logger.debug(f"Raw ship: {raw_ship}")
+        ship_name = raw_ship.get("type")
+        positions = raw_ship.get("positions")
 
-    for ship_name, positions in raw_ships.items():
-        if not positions:
-            raise ValueError(f"Invalid positions for ship {ship_name}")
-        ships.append(Ship(name=ship_name, position=positions))
+        if not ship_name or not positions:
+            raise ValueError("Invalid ship data format")
+
+        ships.append(ShipDetails(type=ship_name, positions=positions))
 
     return ships

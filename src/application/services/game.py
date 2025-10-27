@@ -3,13 +3,12 @@
 import logging
 import time
 import uuid
-from typing import Any
+from typing import Any, List
 
 from pydantic import ValidationError
 
 from src.domain.game import GameSession, GameStatus, PlayerBoard
 from src.domain.player import Player
-from src.domain.ship import Ship
 from src.application.repositories.game_repository import GameRepository
 from src.infrastructure.manager.connection_manager import ConnectionManager
 from src.api.v1.schemas.game_actions import (
@@ -17,7 +16,11 @@ from src.api.v1.schemas.game_actions import (
     ShootRequest,
     StartGameRequest,
 )
-from src.api.v1.schemas.place_ships import ShipPlacementRequest, StandardResponse
+from src.api.v1.schemas.place_ships import (
+    ShipPlacementRequest,
+    StandardResponse,
+    ShipDetails
+)
 from src.api.v1.schemas.player_info import PlayerInfoRequest
 from src.application.ship import parse_ships
 
@@ -65,7 +68,7 @@ class GameService:
                 req_place_ship = ShipPlacementRequest(
                     game_id=payload["game_id"],
                     player_id=str(player.id),
-                    ships=payload["ships"],
+                    ships=parse_ships(payload["ships"]),
                 )
             except (KeyError, ValidationError) as e:
                 logger.error(f"{action} validation error: {e}")
@@ -162,15 +165,7 @@ class GameService:
         Returns:
             A StandardResponse indicating the outcome of the operation.
         """
-        try:
-            ships: list[Ship] = parse_ships(request.ships)
-        except ValueError as e:
-            logger.error(f" place_ship error: {e}")
-            return StandardResponse(
-                status="error", message=str(e), action="resp_place_ships", data=""
-            )
-
-        await self.repository.save_player_board(request.game_id, player, ships)
+        await self.repository.save_player_board(request.game_id, player, request.ships)
 
         return StandardResponse(
             status="OK",
@@ -215,7 +210,7 @@ class GameService:
                 )
 
             try:
-                ships: list[Ship] = parse_ships(raw_ships_raw)
+                ships: List[ShipDetails] = parse_ships(raw_ships_raw)
             except ValueError as e:
                 return StandardResponse(
                     status="error", message=str(e), action="resp_start_game", data=""

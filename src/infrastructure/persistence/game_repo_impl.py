@@ -3,12 +3,13 @@
 import json
 import logging
 import uuid
+from typing import List
 
 import redis.asyncio as aioredis
 
 from src.domain.game import GameSession
 from src.domain.player import Player
-from src.domain.ship import Ship
+from src.api.v1.schemas.place_ships import ShipDetails
 from src.application.repositories.game_repository import GameRepository
 from src.config import settings
 
@@ -35,7 +36,7 @@ class GameRedisRepository(GameRepository):
         )
 
     async def save_player_board(
-        self, game_id: str, player: Player, ships: list[Ship]
+        self, game_id: str, player: Player, ships: List[ShipDetails]
     ) -> None:
         """Saves a player's board (ship placements) to Redis.
 
@@ -46,7 +47,7 @@ class GameRedisRepository(GameRepository):
         """
         key = f"game:{game_id}:player_board:{player.id}:board"
         # Convert list of Ship objects to the format expected by get_player_board
-        board_data = {ship.name: ship.position for ship in ships}
+        board_data = {ship.type: ship.positions for ship in ships}
         value = json.dumps(board_data)
         await self.redis_client.set(key, value)  # type: ignore
 
@@ -113,7 +114,7 @@ class GameRedisRepository(GameRepository):
         logger.debug("ESTA NA POP FROM QUEUE")
         payload = json.dumps({"player_id": str(player)})
         logger.debug(f"ESSE O PAYLOAD {payload}")
-        await self.redis_client.lrem(queue_name, 1, payload)  # type: ignore
+        await self.redis_client.lrem(queue_name, 0, payload)  # type: ignore
 
     async def save_game_to_redis(
         self,

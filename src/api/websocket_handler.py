@@ -97,7 +97,6 @@ async def _message_loop(
         await websocket.send_json(handler_response.to_dict())
 
 
-# --- New Main WebSocket Handler ---
 @router.websocket("/ws/connect")
 async def websocket_connection(websocket: WebSocket) -> None:
     """Handles the WebSocket connection for a player."""
@@ -107,38 +106,29 @@ async def websocket_connection(websocket: WebSocket) -> None:
 
     player_id = None
     player = None
-    # Initialize 'e' to None before the try block
-    e: Optional[Exception] = None
+    e = None
 
     try:
-        # 1. Registration
         player_id, player = await _register_player(websocket, trace_id)
         if not player_id or not player:
             await websocket.close()
             return
 
-        # 2. Main Message Loop
         await _message_loop(websocket, player)
 
     except WebSocketDisconnect as e:
         logger.info(f"[{trace_id}] Player {player_id} disconnected: {e}")
-        # 'e' is set to WebSocketDisconnect here
     except Exception as e:
         logger.error(f"[{trace_id}] ERROR for player {player_id}: {e}")
         if websocket.client_state.name == "CONNECTED":
             await websocket.send_json({"status": "error", "message": str(e)})
-        # 'e' is set to a general Exception here
     finally:
-        # 3. Disconnection Cleanup
         if player_id:
             queue_key = "matchmaking:queue"
             await game_repo.pop_from_queue(queue_key, player_id)
             conn_manager.remove_player(player_id)
 
-            # Check if an exception was raised AND it wasn't a normal disconnect
-            # Since 'e' is initialized to None, this check is safe and clear
             if e is not None and not isinstance(e, WebSocketDisconnect):
-                # This branch executes only if an ERROR (not a disconnect) occurred
                 await conn_manager.broadcast(
                     f"Player {player_id} has left due to error."
                 )

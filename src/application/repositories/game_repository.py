@@ -5,7 +5,8 @@ from abc import ABC, abstractmethod
 
 from src.domain.game import GameSession
 from src.domain.player import Player
-from src.domain.ship import Ship
+from src.api.v1.schemas.place_ships import ShipDetails
+from typing import List
 
 
 class GameRepository(ABC):
@@ -13,7 +14,7 @@ class GameRepository(ABC):
 
     @abstractmethod
     async def save_player_board(
-        self, game_id: str, player: Player, ships: list[Ship]
+        self, game_id: str, player: Player, ships: List[ShipDetails]
     ) -> None:
         """Saves a player's board (ship placements) to the repository."""
         pass

@@ -1,6 +1,6 @@
 """Data validation and serialization models for game actions."""
 
-from typing import Any
+from typing import Any, List
 
 from pydantic import BaseModel, Field
 
@@ -17,6 +17,13 @@ class SerializableModel(BaseModel):
         return self.model_dump()
 
 
+class ShipDetails(BaseModel):
+    """Schema for a single ship's type and positions."""
+    type: str = Field(..., description="Type/Name of the ship (e.g., 'Seeker').")
+    positions: List[str] = Field(...,
+                                 description="List ship coordinates ['A1', 'A2']).")
+
+
 class ShipPlacementRequest(BaseModel):
     """Schema for validating a player's ship placement request.
 
@@ -28,9 +35,7 @@ class ShipPlacementRequest(BaseModel):
 
     game_id: str = Field(..., description="The ID of the game")
     player_id: str = Field(..., description="The ID of the player placing ships")
-    ships: dict[str, list[str]] = Field(
-        ..., description="Dictionary mapping ship names to coordinates"
-    )
+    ships: List[ShipDetails] = Field(..., description="List of ships")
 
 
 class StandardResponse(SerializableModel):
