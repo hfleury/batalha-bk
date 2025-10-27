@@ -3,6 +3,7 @@
 import json
 import logging
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -21,6 +22,82 @@ game_service = GameService(game_repo, conn_manager)
 logger = logging.getLogger(__name__)
 
 
+async def _register_player(
+    websocket: WebSocket,
+    trace_id: str
+) -> tuple[uuid.UUID | None, Player | None]:
+    """Handles the initial message, extracts player_id, and registers the player."""
+    try:
+        data = await websocket.receive_text()
+        payload = json.loads(data)
+        player_id_str = payload.get("player_id")
+
+        if not player_id_str:
+            response = StandardResponse(
+                action="register",
+                status="error",
+                message="player_id is required in first message",
+                data=None
+            )
+            await websocket.send_json(response.to_dict())
+            return None, None
+
+        try:
+            player_id = uuid.UUID(player_id_str)
+        except ValueError:
+            response = StandardResponse(
+                action="register",
+                status="error",
+                message="Invalid player_id format. Must be a valid UUID.",
+                data=None
+            )
+            await websocket.send_json(response.to_dict())
+            return None, None
+
+        conn_websocket = WebSocketConnection(player_id, websocket)
+        player = Player(id=player_id)
+        player_conn = PlayerConnection(player=player, connection=conn_websocket)
+        conn_manager.add_player(player_conn)
+
+        logger.info(f"[{trace_id}] Player {player_id} connected and registered")
+
+        action = payload.get("action")
+        if action:
+            initial_response: StandardResponse = await game_service.handle_action(
+                action, payload, player
+            )
+            await websocket.send_json(initial_response.to_dict())
+
+        return player_id, player
+    except json.JSONDecodeError as e:
+        logger.error(f"[{trace_id}] Invalid JSON ERROR during registration: {e}")
+        await websocket.send_json({
+            "status": "error",
+            "message": "Invalid JSON format"
+        })
+        return None, None
+    except Exception as e:
+        logger.error(f"[{trace_id}] Unexpected ERROR during registration: {e}")
+        return None, None
+
+
+async def _message_loop(
+    websocket: WebSocket,
+    player: Player
+) -> None:
+    """The main loop for processing subsequent messages."""
+    while True:
+        data = await websocket.receive_text()
+        payload = json.loads(data)
+        action = payload.get("action")
+
+        handler_response: StandardResponse = await game_service.handle_action(
+            action, payload, player
+        )
+        await websocket.send_json(handler_response.to_dict())
+
+
+# --- New Main WebSocket Handler ---
 @router.websocket("/ws/connect")
 async def websocket_connection(websocket: WebSocket) -> None:
     """Handles the WebSocket connection for a player."""
@@ -29,83 +106,39 @@ async def websocket_connection(websocket: WebSocket) -> None:
     await websocket.accept()
 
     player_id = None
-    player_conn = None
+    player = None
+    # Initialize 'e' to None before the try block
+    e: Optional[Exception] = None
 
     try:
-        # Wait for the first message to get player_id
-        data = await websocket.receive_text()
-        try:
-            payload = json.loads(data)
-            player_id_str = payload.get("player_id")
-
-            if not player_id_str:
-                await websocket.send_json({
-                    "status": "error",
-                    "message": "player_id is required in first message"
-                })
-                await websocket.close()
-                return
-
-            # Convert string to UUID object
-            try:
-                player_id = uuid.UUID(player_id_str)
-            except ValueError:
-                await websocket.send_json({
-                    "status": "error",
-                    "message": "Invalid player_id format. Must be a valid UUID."
-                })
-                await websocket.close()
-                return
-
-            # Initialize player and connection with UUID object
-            conn_websocket = WebSocketConnection(player_id, websocket)
-            player = Player(id=player_id)
-            player_conn = PlayerConnection(player=player, connection=conn_websocket)
-            conn_manager.add_player(player_conn)
-
-            logger.info(f"[{trace_id}] Player {player_id} connected and registered")
-
-            # Process the initial action if present
-            action = payload.get("action")
-            if action:
-                initial_response: StandardResponse = await game_service.handle_action(
-                    action, payload, player
-                )
-                await websocket.send_json(initial_response.to_dict())
-
-            # Continue listening for subsequent messages
-            while True:
-                data = await websocket.receive_text()
-                payload = json.loads(data)
-                action = payload.get("action")
-
-                handle_response: StandardResponse = await game_service.handle_action(
-                    action, payload, player
-                )
-                await websocket.send_json(handle_response.to_dict())
-
-        except json.JSONDecodeError as e:
-            logger.error(f"[{trace_id}] Invalid JSON ERROR: {e}")
-            await websocket.send_json(
-                {"status": "error", "message": "Invalid JSON format"}
-            )
+        # 1. Registration
+        player_id, player = await _register_player(websocket, trace_id)
+        if not player_id or not player:
             await websocket.close()
             return
 
+        # 2. Main Message Loop
+        await _message_loop(websocket, player)
+
     except WebSocketDisconnect as e:
         logger.info(f"[{trace_id}] Player {player_id} disconnected: {e}")
-        if player_id:
-            queue_key = "matchmaking:queue"
-            await game_repo.pop_from_queue(queue_key, player_id)
-            conn_manager.remove_player(player_id)
-            await conn_manager.broadcast(f"Player {player_id} has left.")
+        # 'e' is set to WebSocketDisconnect here
     except Exception as e:
         logger.error(f"[{trace_id}] ERROR for player {player_id}: {e}")
+        if websocket.client_state.name == "CONNECTED":
+            await websocket.send_json({"status": "error", "message": str(e)})
+        # 'e' is set to a general Exception here
+    finally:
+        # 3. Disconnection Cleanup
         if player_id:
             queue_key = "matchmaking:queue"
             await game_repo.pop_from_queue(queue_key, player_id)
             conn_manager.remove_player(player_id)
-            await websocket.send_json(
-                {"status": "error", "message": str(e)}
-            )
-            await conn_manager.broadcast(f"Player {player_id} has left due to error.")
+
+            # Check if an exception was raised AND it wasn't a normal disconnect
+            # Since 'e' is initialized to None, this check is safe and clear
+            if e is not None and not isinstance(e, WebSocketDisconnect):
+                # This branch executes only if an ERROR (not a disconnect) occurred
+                await conn_manager.broadcast(
+                    f"Player {player_id} has left due to error."
+                )
