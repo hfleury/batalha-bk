@@ -65,7 +65,7 @@ class GameService:
                 req_place_ship = ShipPlacementRequest(
                     game_id=payload["game_id"],
                     player_id=str(player.id),
-                    ships=payload["players"][str(player.id)],
+                    ships=payload["ships"][str(player.id)],
                 )
             except (KeyError, ValidationError) as e:
                 logger.error(f"{action} validation error: {e}")

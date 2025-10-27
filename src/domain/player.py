@@ -19,6 +19,11 @@ class Player(BaseModel):
     email: Optional[str] = None
     password: Optional[str] = Field(default=None, exclude=True)
 
+    @property
+    def id_str(self) -> str:
+        """Returns the player's ID as a string. """
+        return str(self.id)
+
     @classmethod
     def empty(cls) -> Self:
         """Creates an empty Player instance."""
