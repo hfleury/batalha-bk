@@ -3,7 +3,7 @@
 import uuid
 from abc import ABC, abstractmethod
 
-from src.domain.game import GameSession
+from src.domain.game import GameSession, GameInfo
 from src.domain.player import Player
 from src.api.v1.schemas.place_ships import ShipDetails
 from typing import List
@@ -24,6 +24,20 @@ class GameRepository(ABC):
         self, game_id: uuid.UUID, player_id: uuid.UUID
     ) -> dict[str, list[str]]:
         """Retrieves a player's board from the repository."""
+        pass
+
+    @abstractmethod
+    async def get_game_board(
+        self, game_id: uuid.UUID
+    ) -> dict[str, dict[str, list[str]]]:
+        """Retrieve the board of agame
+
+        Args:
+            game_id (uuid.UUID): _description_
+
+        Returns:
+            dict[str, dict[srt, list[str]]]: _description_
+        """
         pass
 
     @abstractmethod
@@ -84,4 +98,12 @@ class GameRepository(ABC):
         self, queue_name: str, player_id: uuid.UUID
     ) -> uuid.UUID | None:
         """Retrieves an opponent for a player from the matchmaking queue."""
+        pass
+
+    @abstractmethod
+    async def get_game_info(self, game_key: str) -> GameInfo:
+        pass
+
+    @abstractmethod
+    async def exist_player_on_game(self, game_id: str, player_id: str) -> bool:
         pass

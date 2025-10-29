@@ -59,3 +59,16 @@ class GameSession(BaseModel):
             "current_turn": str(self.current_turn),
             "status": self.status.value,
         }
+
+
+class GameInfo(BaseModel):
+    """Lightweight representation of game metadata stored in Redis."""
+    
+    game_id: str
+    player1_id: str
+    player2_id: str
+    status: str
+    created_at: str
+
+    class Config:
+        frozen = True  # makes it immutable (like a dataclass)

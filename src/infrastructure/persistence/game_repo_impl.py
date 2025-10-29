@@ -3,11 +3,12 @@
 import json
 import logging
 import uuid
+from datetime import datetime
 from typing import List
 
 import redis.asyncio as aioredis
 
-from src.domain.game import GameSession
+from src.domain.game import GameSession, GameInfo
 from src.domain.player import Player
 from src.api.v1.schemas.place_ships import ShipDetails
 from src.application.repositories.game_repository import GameRepository
@@ -45,16 +46,29 @@ class GameRedisRepository(GameRepository):
             player: The player object.
             ships: A list of Ship objects representing the player's board.
         """
-        key = f"game:{game_id}:player_board:{player.id}:board"
-        # Convert list of Ship objects to the format expected by get_player_board
+        key = f"game:{game_id}:player_id:{player.id}:ships"
         board_data = {ship.type: ship.positions for ship in ships}
-        value = json.dumps(board_data)
-        await self.redis_client.set(key, value)  # type: ignore
+        await self.redis_client.hset(key, mapping={
+            "ships": json.dumps(board_data),
+            "status": "ships_placed",
+            "placed_at": datetime.utcnow().isoformat()
+        })
+        await self.redis_client.expire(key, 86400)
 
     async def get_player_board(
         self, game_id: uuid.UUID, player_id: uuid.UUID
     ) -> dict[str, list[str]]:
         key = f"game:{game_id}:player_board:{player_id}:board"
+        value = await self.redis_client.get(key)
+        if value is None or not isinstance(value, (str, bytes, bytearray)):
+            return {}
+        return json.loads(value)
+
+    async def get_game_board(
+        self, game_id: uuid.UUID
+    ) -> dict[str, dict[str, list[str]]]:
+        key = f"game:{game_id}:board"
+        logger.debug(f"AQUI ESTA A KEY TO REDIS {key}")
         value = await self.redis_client.get(key)
         if value is None or not isinstance(value, (str, bytes, bytearray)):
             return {}
@@ -122,18 +136,16 @@ class GameRedisRepository(GameRepository):
     ) -> None:
         game_dict = game.to_serializable_dict()
         logger.debug(f"INSIDE SAVE GAME TO REDIS {game_dict}")
-        redis_key = f"game:{str(game_dict["game_id"])}"
+        players = iter(game.players)
         # TODO add it to configuration
         ttl_seconds = 86400  # 24h in seconds
-        logger.debug(
-            f"GAME TO SERIALIZABLE DICT JSON DUMPS {
-                json.dumps(game.to_serializable_dict())
-            }"
-        )
         try:
-            await self.redis_client.set(
-                redis_key, json.dumps(game.to_serializable_dict()), ex=ttl_seconds
-            )
+            await self.redis_client.hset(f"game:{str(game_dict["game_id"])}", mapping={
+                "player1": str(next(players)),
+                "player2": str(next(players)),
+                "status": "waiting_for_ships",
+                "created_at": datetime.utcnow().isoformat()
+            })
         except Exception as e:
             logger.error(f"NAO SALVO O JOGO ERROR: {e}")
 
@@ -179,3 +191,21 @@ class GameRedisRepository(GameRepository):
                     continue
 
         return None
+
+    async def get_game_info(self, game_key: str) -> GameInfo:
+        logger.debug(f"INSIDE GET GAME INFO {game_key}")
+        raw = await self.redis_client.hgetall(f"game:{game_key}")
+        return GameInfo(
+            game_id=game_key,
+            player1_id=raw["player1"],
+            player2_id=raw["player2"],
+            status=raw["status"],
+            created_at=raw["created_at"],
+        )
+    
+    async def exist_player_on_game(self, game_id: str, player_id: str) -> bool:
+        key: str = f"game:{game_id}:player_id:{player_id}:ships"
+        logger.debug(f"KEY FOR THE EXIST PLAYER ON GAME {key}")
+        exist: bool = await self.redis_client.exists(key)
+        return exist
+        

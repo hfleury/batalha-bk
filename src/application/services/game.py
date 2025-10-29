@@ -3,6 +3,7 @@
 import logging
 import time
 import uuid
+import random
 from typing import Any, List
 
 from pydantic import ValidationError
@@ -165,14 +166,39 @@ class GameService:
         Returns:
             A StandardResponse indicating the outcome of the operation.
         """
-        await self.repository.save_player_board(request.game_id, player, request.ships)
+        game_id: str = request.game_id
+        await self.repository.save_player_board(game_id, player, request.ships)
+        logger.debug("AFTER SAVE PLAYER BOARD")
+        game_info = await self.repository.get_game_info(game_key=game_id)
+        logger.debug(f"AFTER GET GAME INFO ------- {game_id}, {game_info.player1_id}, {game_info.player2_id}")
+        ready = await self.are_both_player_ready(game_id, game_info.player1_id, game_info.player2_id)
+        logger.debug(f"IS TI READYYYYYYYY _)__ )_)ID )SADKJ) READY=== {ready}")
+        if ready:
+            first_turn = str(random.choice([game_info.player1_id, game_info.player2_id]))
+            battle_msg =  StandardResponse(
+                status="battle_start",
+                message=f"Both players have placed the ships",
+                action="place_ship_response",
+                firstTurn=first_turn,
+                data="",
+            )
+            logger.info(f"Both players ready for game {game_id}. Notifying players.")
+            await self.conn_manager.send_to_player(uuid.UUID(game_info.player1_id), battle_msg.to_dict())
+            await self.conn_manager.send_to_player(uuid.UUID(game_info.player2_id), battle_msg.to_dict())
+
+            return StandardResponse(
+                status="OK",
+                message="Ships placed. Battle starting!",
+                action="place_ship_response",
+                data="",
+            )
 
         return StandardResponse(
-            status="shipsPlaced",
-            message=f"Ships placed for player {player.id}",
-            action="place_ship_response",
-            data="",
-        )
+                status="shipsPlaced",
+                message=f"Ships placed for player {player.id}",
+                action="place_ship_response",
+                data=""
+            )
 
     async def start_game(self, request: StartGameRequest) -> StandardResponse:
         """Initializes a game by setting up the boards for all players.
@@ -368,7 +394,7 @@ class GameService:
             A StandardResponse indicating if a game was created or if the player is
             waiting.
         """
-        queue_key = "matchmaking:queue"
+        queue_key = "game:queue"
 
         opponent_player_id = await self.repository.get_opponent_from_queue(
             queue_key, player.player_id
@@ -380,7 +406,6 @@ class GameService:
             logger.info(f"ESTA AQUIIII {opponent_player_id}")
             game_id = uuid.uuid4()
             now = int(time.time())
-            current_turn = player.player_id
 
             game_data = GameSession(
                 game_id=game_id,
@@ -390,7 +415,6 @@ class GameService:
                     opponent_player_id: PlayerBoard(),
                     player.player_id: PlayerBoard(),
                 },
-                current_turn=current_turn,
                 status=GameStatus.IN_PROGRESS,
             )
             logger.debug(f"AFTER CREATE GAMESESSION {game_data}")
@@ -468,3 +492,12 @@ class GameService:
             if pid != current_id:
                 return pid
         return current_id
+
+    async def are_both_player_ready(self, game_id: str, player1_id: str, player2_id: str) -> bool:
+        player1_ready = await self.repository.exist_player_on_game(game_id, player1_id)
+        logger.debug(f"player1_ready {player1_ready}")
+        player2_ready = await self.repository.exist_player_on_game(game_id, player2_id)
+        logger.debug(f"player2_ready {player2_ready}")
+        if player1_ready and player2_ready:
+            return True
+        return False

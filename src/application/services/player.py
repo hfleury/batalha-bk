@@ -52,7 +52,9 @@ class PlayerRegistrationService:
 
         # Check if user already exists
         existing: Player = await self.repo.get_player_by_username(username)
-        if existing:
+        logger.debug(existing)
+        if existing and existing.username is not None:
+            logger.debug("ENTGROU AWQUIQN DOASJKLODNM AS P{ORRRAAAAAA   }")
             raise ValueError(f"Username '{username}' is already taken")
 
         if password != confirm_password:
