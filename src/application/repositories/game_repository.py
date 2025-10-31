@@ -2,11 +2,11 @@
 
 import uuid
 from abc import ABC, abstractmethod
+from typing import List
 
 from src.domain.game import GameSession, GameInfo
 from src.domain.player import Player
 from src.api.v1.schemas.place_ships import ShipDetails
-from typing import List
 
 
 class GameRepository(ABC):
@@ -102,8 +102,18 @@ class GameRepository(ABC):
 
     @abstractmethod
     async def get_game_info(self, game_key: str) -> GameInfo:
+        """Retrieves essential, static information about a game."""
         pass
 
     @abstractmethod
     async def exist_player_on_game(self, game_id: str, player_id: str) -> bool:
+        """Checks if a player's board (ship placements) exists for a given game.
+
+        Args:
+            game_id (str): the game id (UUID as string)
+            player_id (str): the player to be check a string of a UUID
+
+        Returns:
+            bool: if the player exist on the game id
+        """
         pass

@@ -46,13 +46,16 @@ class GameRedisRepository(GameRepository):
             player: The player object.
             ships: A list of Ship objects representing the player's board.
         """
+
         key = f"game:{game_id}:player_id:{player.id}:ships"
         board_data = {ship.type: ship.positions for ship in ships}
+
         await self.redis_client.hset(key, mapping={
             "ships": json.dumps(board_data),
             "status": "ships_placed",
             "placed_at": datetime.utcnow().isoformat()
-        })
+        })  # type: ignore[misc]
+
         await self.redis_client.expire(key, 86400)
 
     async def get_player_board(
@@ -138,14 +141,14 @@ class GameRedisRepository(GameRepository):
         logger.debug(f"INSIDE SAVE GAME TO REDIS {game_dict}")
         players = iter(game.players)
         # TODO add it to configuration
-        ttl_seconds = 86400  # 24h in seconds
+        # ttl_seconds = 86400  # 24h in seconds
         try:
             await self.redis_client.hset(f"game:{str(game_dict["game_id"])}", mapping={
                 "player1": str(next(players)),
                 "player2": str(next(players)),
                 "status": "waiting_for_ships",
                 "created_at": datetime.utcnow().isoformat()
-            })
+            })   # type: ignore[misc]
         except Exception as e:
             logger.error(f"NAO SALVO O JOGO ERROR: {e}")
 
@@ -194,7 +197,7 @@ class GameRedisRepository(GameRepository):
 
     async def get_game_info(self, game_key: str) -> GameInfo:
         logger.debug(f"INSIDE GET GAME INFO {game_key}")
-        raw = await self.redis_client.hgetall(f"game:{game_key}")
+        raw = await self.redis_client.hgetall(f"game:{game_key}")   # type: ignore[misc]
         return GameInfo(
             game_id=game_key,
             player1_id=raw["player1"],
@@ -202,10 +205,9 @@ class GameRedisRepository(GameRepository):
             status=raw["status"],
             created_at=raw["created_at"],
         )
-    
+
     async def exist_player_on_game(self, game_id: str, player_id: str) -> bool:
         key: str = f"game:{game_id}:player_id:{player_id}:ships"
         logger.debug(f"KEY FOR THE EXIST PLAYER ON GAME {key}")
         exist: bool = await self.redis_client.exists(key)
         return exist
-        

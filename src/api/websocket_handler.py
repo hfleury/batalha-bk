@@ -105,7 +105,6 @@ async def websocket_connection(websocket: WebSocket) -> None:
 
     player_id = None
     player = None
-    e: BaseException | None = None  # type: ignore
 
     try:
         player_id, player = await _register_player(websocket, trace_id)

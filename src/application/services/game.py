@@ -170,23 +170,36 @@ class GameService:
         await self.repository.save_player_board(game_id, player, request.ships)
         logger.debug("AFTER SAVE PLAYER BOARD")
         game_info = await self.repository.get_game_info(game_key=game_id)
-        logger.debug(f"AFTER GET GAME INFO ------- {game_id}, {game_info.player1_id}, {game_info.player2_id}")
-        ready = await self.are_both_player_ready(game_id, game_info.player1_id, game_info.player2_id)
-        logger.debug(f"IS TI READYYYYYYYY _)__ )_)ID )SADKJ) READY=== {ready}")
+        ready = await self.are_both_player_ready(
+            game_id,
+            game_info.player1_id,
+            game_info.player2_id
+        )
+
         if ready:
-            first_turn = str(random.choice([game_info.player1_id, game_info.player2_id]))
-            logger.debug(f"IOAUJSNDUIOJASNDUIOAS DIUASND IUOASJDNB ASIOUDN(ASB* DIJASND)\n {first_turn}")
-            battle_msg =  StandardResponse(
+            first_turn = str(
+                random.choice(
+                    [game_info.player1_id, game_info.player2_id]
+                )
+            )
+
+            battle_msg = StandardResponse(
                 status="battle_start",
-                message=f"Both players have placed the ships",
+                message="Both players have placed the ships",
                 action="place_ship_response",
                 data={
                     "firstTurn": first_turn,
                 },
             )
-            logger.info(f"Both players ready for game {game_id}. Notifying players.")
-            await self.conn_manager.send_to_player(uuid.UUID(game_info.player1_id), battle_msg.to_dict())
-            await self.conn_manager.send_to_player(uuid.UUID(game_info.player2_id), battle_msg.to_dict())
+
+            await self.conn_manager.send_to_player(
+                uuid.UUID(game_info.player1_id),
+                battle_msg.to_dict()
+            )
+            await self.conn_manager.send_to_player(
+                uuid.UUID(game_info.player2_id),
+                battle_msg.to_dict()
+            )
 
             return StandardResponse(
                 status="OK",
@@ -217,7 +230,7 @@ class GameService:
         game_id = request.game_id
         players_data = request.players
 
-        for player_id_str, raw_ships_raw in players_data.items():
+        for player_id_str, raw_ships_dict in players_data.items():
             try:
                 player_id_int = uuid.UUID(player_id_str)
             except ValueError as e:
@@ -229,16 +242,30 @@ class GameService:
                     data="",
                 )
 
-            if not raw_ships_raw:
+            if not raw_ships_dict:
                 return StandardResponse(
                     status="error",
                     message=f"Invalid ships data for player {player_id_str}",
                     action="resp_start_game",
                     data="",
                 )
+            try:
+                # Assuming raw_ships_dict is like {"Carrier": ["A1", "A2", ...], ...}
+                raw_ship_list: List[dict[str, Any]] = [
+                    {"type": ship_type, "positions": positions}
+                    for ship_type, positions in raw_ships_dict.items()
+                ]
+            except Exception as e:
+                logger.error(f"Error structuring ship data: {e}")
+                return StandardResponse(
+                    status="error",
+                    message="Internal error structuring ship data.",
+                    action="resp_start_game",
+                    data=""
+                )
 
             try:
-                ships: List[ShipDetails] = parse_ships(raw_ships_raw)
+                ships: List[ShipDetails] = parse_ships(raw_ship_list)
             except ValueError as e:
                 return StandardResponse(
                     status="error", message=str(e), action="resp_start_game", data=""
@@ -495,7 +522,22 @@ class GameService:
                 return pid
         return current_id
 
-    async def are_both_player_ready(self, game_id: str, player1_id: str, player2_id: str) -> bool:
+    async def are_both_player_ready(
+        self,
+        game_id: str,
+        player1_id: str,
+        player2_id: str
+    ) -> bool:
+        """Check if both players are ready to start a game
+
+        Args:
+            game_id (str): the game id to check against
+            player1_id (str): One of the players id
+            player2_id (str): the other players id
+
+        Returns:
+            bool: if both players has placed the ships they are ready to start a game
+        """
         player1_ready = await self.repository.exist_player_on_game(game_id, player1_id)
         logger.debug(f"player1_ready {player1_ready}")
         player2_ready = await self.repository.exist_player_on_game(game_id, player2_id)
