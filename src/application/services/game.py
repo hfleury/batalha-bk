@@ -175,12 +175,14 @@ class GameService:
         logger.debug(f"IS TI READYYYYYYYY _)__ )_)ID )SADKJ) READY=== {ready}")
         if ready:
             first_turn = str(random.choice([game_info.player1_id, game_info.player2_id]))
+            logger.debug(f"IOAUJSNDUIOJASNDUIOAS DIUASND IUOASJDNB ASIOUDN(ASB* DIJASND)\n {first_turn}")
             battle_msg =  StandardResponse(
                 status="battle_start",
                 message=f"Both players have placed the ships",
                 action="place_ship_response",
-                firstTurn=first_turn,
-                data="",
+                data={
+                    "firstTurn": first_turn,
+                },
             )
             logger.info(f"Both players ready for game {game_id}. Notifying players.")
             await self.conn_manager.send_to_player(uuid.UUID(game_info.player1_id), battle_msg.to_dict())
