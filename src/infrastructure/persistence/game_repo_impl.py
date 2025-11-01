@@ -61,11 +61,19 @@ class GameRedisRepository(GameRepository):
     async def get_player_board(
         self, game_id: uuid.UUID, player_id: uuid.UUID
     ) -> dict[str, list[str]]:
-        key = f"game:{game_id}:player_board:{player_id}:board"
-        value = await self.redis_client.get(key)
-        if value is None or not isinstance(value, (str, bytes, bytearray)):
+        # Match the key format used in save_player_board
+        key = f"game:{game_id}:player_id:{player_id}:ships"
+        logger.debug(f"[get_player_board] Loading key: {key}")
+        
+        raw = await self.redis_client.hget(key, "ships")  # ← because you used HSET
+        if raw is None:
             return {}
-        return json.loads(value)
+        
+        try:
+            return json.loads(raw)
+        except Exception as e:
+            logger.error(f"Failed to parse board data: {e}")
+            return {}
 
     async def get_game_board(
         self, game_id: uuid.UUID
@@ -90,8 +98,8 @@ class GameRedisRepository(GameRepository):
         player_ids = list(game_data["players"].keys())
 
         try:
-
             return uuid.UUID(next(pid for pid in player_ids if pid != str(player.id)))
+
         except StopIteration:
             return None
 
@@ -137,27 +145,46 @@ class GameRedisRepository(GameRepository):
         self,
         game: GameSession,
     ) -> None:
+        key = f"game:{game.game_id}"
+        # Serialize the entire GameSession to JSON
         game_dict = game.to_serializable_dict()
-        logger.debug(f"INSIDE SAVE GAME TO REDIS {game_dict}")
-        players = iter(game.players)
+        game_json = json.dumps(game_dict)
+        logger.debug(f"Saving full game session to Redis key: {key}")
+        logger.debug(f"Game JSON: {game_json}")
+        
+        try:
+            await self.redis_client.set(key, game_json, ex=86400)  # 24h TTL
+        except Exception as e:
+            logger.error(f"Failed to save game to Redis: {e}")
+            raise
+        #game_dict = game.to_serializable_dict()
+        #logger.debug(f"INSIDE SAVE GAME TO REDIS {game_dict}")
+        #players = iter(game.players)
         # TODO add it to configuration
         # ttl_seconds = 86400  # 24h in seconds
-        try:
-            await self.redis_client.hset(f"game:{str(game_dict["game_id"])}", mapping={
-                "player1": str(next(players)),
-                "player2": str(next(players)),
-                "status": "waiting_for_ships",
-                "created_at": datetime.utcnow().isoformat()
-            })   # type: ignore[misc]
-        except Exception as e:
-            logger.error(f"NAO SALVO O JOGO ERROR: {e}")
+        #try:
+        #    await self.redis_client.hset(f"game:{str(game_dict["game_id"])}", mapping={
+        #        "player1": str(next(players)),
+        #        "player2": str(next(players)),
+        #        "status": "waiting_for_ships",
+        #        "created_at": datetime.utcnow().isoformat()
+        #    })   # type: ignore[misc]
+        #except Exception as e:
+        #    logger.error(f"NAO SALVO O JOGO ERROR: {e}")
 
     async def load_game_session(self, game_id: uuid.UUID) -> GameSession | None:
-        key = f"game:{game_id}:session"
+        key = f"game:{game_id}"
+        logger.debug(f"INSIDE THE LOAD GAME SESSION {key}")
         raw = await self.redis_client.get(key)  # type: ignore
         if not raw:
+            logger.warning(f"No game session found for key: {key}")
             return None
-        return GameSession.model_validate_json(raw)  # type: ignore
+        try:
+            data = json.loads(raw)
+            return GameSession.from_serialized_dict(data)
+        except Exception as e:
+            logger.error(f"Failed to deserialize game session: {e}")
+            return None
 
     async def save_game_session(self, game: GameSession) -> None:
         key = f"game:{game.game_id}:session"

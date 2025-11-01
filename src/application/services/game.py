@@ -167,37 +167,64 @@ class GameService:
             A StandardResponse indicating the outcome of the operation.
         """
         game_id: str = request.game_id
-        await self.repository.save_player_board(game_id, player, request.ships)
+        game_id_uuid: uuid.UUID = uuid.UUID(game_id)
+        try:
+            await self.repository.save_player_board(game_id, player, request.ships)
+        except Exception as ex:
+            logger.debug(f"EXCEPTION {e}")
         logger.debug("AFTER SAVE PLAYER BOARD")
-        game_info = await self.repository.get_game_info(game_key=game_id)
+        game_session = await self.repository.load_game_session(game_id=game_id_uuid)
+        logger.debug(f"LOAD GAME SESSION {game_session}")
+        if not game_session:
+            return StandardResponse(
+                status="error",
+                message="Game session not found",
+                action="place_ship_response",
+                data="",
+            )
+
+        # Extract player IDs from the session's players dict
+        player_ids = list(game_session.players.keys())
+        if len(player_ids) != 2:
+            return StandardResponse(
+                status="error",
+                message="Invalid number of players in game",
+                action="place_ship_response",
+                data="",
+            )
+        player1_id, player2_id = player_ids[0], player_ids[1]
+        logger.debug(f"PLAYERS {player1_id} AND THE {player2_id}")
         ready = await self.are_both_player_ready(
             game_id,
-            game_info.player1_id,
-            game_info.player2_id
+            str(player1_id),
+            str(player2_id)
         )
 
         if ready:
-            first_turn = str(
-                random.choice(
-                    [game_info.player1_id, game_info.player2_id]
-                )
+            first_turn = random.choice(
+                    [player1_id, player2_id]
             )
+
+            logger.debug(f"")
+
+            game_session.current_turn = first_turn
+            await self.repository.save_game_to_redis(game_session)
 
             battle_msg = StandardResponse(
                 status="battle_start",
                 message="Both players have placed the ships",
                 action="place_ship_response",
                 data={
-                    "firstTurn": first_turn,
+                    "firstTurn": str(first_turn),
                 },
             )
 
             await self.conn_manager.send_to_player(
-                uuid.UUID(game_info.player1_id),
+                player1_id,
                 battle_msg.to_dict()
             )
             await self.conn_manager.send_to_player(
-                uuid.UUID(game_info.player2_id),
+                player2_id,
                 battle_msg.to_dict()
             )
 
@@ -323,9 +350,10 @@ class GameService:
         Returns:
             A StandardResponse indicating whether the shot was a hit or miss.
         """
-        game = await self.repository.load_game_session(request.game_id)
-
+        game = await self.repository.load_game_session(str(request.game_id))
+        logger.debug(f"INSIDE THE SHOOT {game}")
         if game:
+            logger.debug(f"GAME TRUE {game.status}")
             if game.status != GameStatus.IN_PROGRESS:
                 return StandardResponse(
                     status="error",
@@ -369,6 +397,9 @@ class GameService:
                     data="",
                 )
 
+            game.current_turn = self._get_next_player(game, request.player_id)
+            await self.repository.save_game_to_redis(game)
+
             for ship_id, positions in opponent_board.items():
                 if request.target in positions:
                     await self.repository.save_hit(
@@ -380,7 +411,7 @@ class GameService:
                     is_sunk = set(hits.get(ship_id, [])) == set(positions)
 
                     return StandardResponse(
-                        status="OK",
+                        status="hit",
                         message=f"the shoot of the player{request.player_id}"
                         " hit the target:{request.target}",
                         action="resp_shoot",
@@ -389,18 +420,23 @@ class GameService:
                             "target": request.target,
                             "ship_id": ship_id,
                             "sunk": is_sunk,
+                            "player_turn": str(game.current_turn),
                         },
                     )
 
-                game.current_turn = self._get_next_player(game, request.player_id)
-                await self.repository.save_game_session(game)
+                # game.current_turn = self._get_next_player(game, request.player_id)
+                # await self.repository.save_game_session(game)
 
             return StandardResponse(
-                status="OK",
-                message=f"the shoot of the player{request.player_id}"
-                " on target:{request.target}",
+                status="miss",
+                message=f"the shoot of the player {request.player_id}"
+                f" on target: {request.target}",
                 action="resp_shoot",
-                data={"status": "miss", "target": request.target},
+                data={
+                    "status": "miss",
+                    "target": request.target,
+                    "player_turn": str(game.current_turn),
+                },
             )
         return StandardResponse(
             status="error",
@@ -465,9 +501,9 @@ class GameService:
                     "start_datetime": game_session.start_datetime,
                     "end_datetime": game_session.end_datetime,
                     "players": (str(player_id)),
-                    "current_turn": str(game_session.current_turn),
+                    # "current_turn": str(game_session.current_turn),
                     "status": game_session.status.value,
-                    "first_turn": str(game_session.current_turn),
+                    # "first_turn": str(game_session.current_turn),
                 }
 
             # Create separate payloads for each player

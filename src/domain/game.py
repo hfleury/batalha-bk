@@ -56,9 +56,24 @@ class GameSession(BaseModel):
                 str(player_id): board.model_dump()
                 for player_id, board in self.players.items()
             },
-            "current_turn": str(self.current_turn),
+            "current_turn": str(self.current_turn) if self.current_turn is not None else None,
             "status": self.status.value,
         }
+
+    @classmethod
+    def from_serialized_dict(cls, data: dict[str, Any]) -> "GameSession":
+        """Reconstructs GameSession from a dict produced by to_serializable_dict."""
+        return cls(
+            game_id=uuid.UUID(data["game_id"]),
+            start_datetime=data["start_datetime"],
+            end_datetime=data["end_datetime"],
+            players={
+                uuid.UUID(pid): PlayerBoard(**board_data)
+                for pid, board_data in data["players"].items()
+            },
+            current_turn=uuid.UUID(data["current_turn"]) if data.get("current_turn") else None,
+            status=GameStatus(data["status"]),
+        )
 
 
 class GameInfo(BaseModel):
