@@ -171,7 +171,7 @@ class GameService:
         try:
             await self.repository.save_player_board(game_id, player, request.ships)
         except Exception as ex:
-            logger.debug(f"EXCEPTION {e}")
+            logger.debug(f"EXCEPTION ON PLACE SHIPS SAVING PLAYER BOARD {ex}")
         logger.debug("AFTER SAVE PLAYER BOARD")
         game_session = await self.repository.load_game_session(game_id=game_id_uuid)
         logger.debug(f"LOAD GAME SESSION {game_session}")
@@ -201,11 +201,10 @@ class GameService:
         )
 
         if ready:
+            logger.debug(f"INSIDE READY TRUE {ready}")
             first_turn = random.choice(
                     [player1_id, player2_id]
             )
-
-            logger.debug(f"")
 
             game_session.current_turn = first_turn
             await self.repository.save_game_to_redis(game_session)
@@ -218,18 +217,21 @@ class GameService:
                     "firstTurn": str(first_turn),
                 },
             )
+            try:
+                await self.conn_manager.send_to_player(
+                    player1_id,
+                    battle_msg.to_dict()
+                )
+                await self.conn_manager.send_to_player(
+                    player2_id,
+                    battle_msg.to_dict()
+                )
+            except Exception as ep:
+                logger.debug(f"ERROR SENDING MESSAGE TO PLAYERS {ep}")
 
-            await self.conn_manager.send_to_player(
-                player1_id,
-                battle_msg.to_dict()
-            )
-            await self.conn_manager.send_to_player(
-                player2_id,
-                battle_msg.to_dict()
-            )
-
+            logger.debug(f"BATLLE MSG {battle_msg}")
             return StandardResponse(
-                status="OK",
+                status="battle_start",
                 message="Ships placed. Battle starting!",
                 action="place_ship_response",
                 data="",
