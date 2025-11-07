@@ -1,10 +1,10 @@
 [project]
 name = "batalha-naval"
 version = "0.1.0"
-description = ""
+description = "API for the battle naval game"
 authors = [
-    {name = "Humebrto",email = "you@example.com"},
-    {name = "Henrique",email = "you@example.com"}
+    {name = "Humberto",email = "humbertooliveiraprado@gmail.com"},
+    {name = "Henrique",email = "henriquefleuryc@gmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.12"
