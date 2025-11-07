@@ -1,6 +1,7 @@
 """Main application entry point for the Game server."""
 
 import logging
+import importlib.metadata
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -16,7 +17,6 @@ from src.infrastructure.logger import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(appFast: FastAPI) -> AsyncGenerator[None, None]:
@@ -37,10 +37,14 @@ async def lifespan(appFast: FastAPI) -> AsyncGenerator[None, None]:
         await appFast.state.db_pool.close()
         logger.info("🛑 PostgreSQL connection closed")
 
+try:
+    APP_VERSION = importlib.metadata.version("batalha-naval")
+except importlib.metadata.PackageNotFoundError:
+    APP_VERSION = "0.0.0-local"
 
 app = FastAPI(
-    title="Batalha Naval API",
-    version="0.1.0",
+    title=settings.app.title,
+    version=APP_VERSION,
     debug=settings.app.debug,
     lifespan=lifespan,
 )
