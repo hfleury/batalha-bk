@@ -100,6 +100,8 @@ class AppSettings(BaseSettings):
     debug: bool = False
     secret_key: str = "your-super-secret-key-change-in-production"
     port: int = 8000
+    title: str = "Batalha Naval Local"
+    version: str = "0.1.0"
 
     model_config = SettingsConfigDict(
         env_prefix="APP_",
