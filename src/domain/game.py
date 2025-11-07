@@ -56,7 +56,8 @@ class GameSession(BaseModel):
                 str(player_id): board.model_dump()
                 for player_id, board in self.players.items()
             },
-            "current_turn": str(self.current_turn) if self.current_turn is not None else None,
+            "current_turn":
+                str(self.current_turn) if self.current_turn is not None else None,
             "status": self.status.value,
         }
 
@@ -71,7 +72,9 @@ class GameSession(BaseModel):
                 uuid.UUID(pid): PlayerBoard(**board_data)
                 for pid, board_data in data["players"].items()
             },
-            current_turn=uuid.UUID(data["current_turn"]) if data.get("current_turn") else None,
+            current_turn=uuid.UUID(
+                data["current_turn"]
+            ) if data.get("current_turn") else None,
             status=GameStatus(data["status"]),
         )
 

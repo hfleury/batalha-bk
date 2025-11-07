@@ -64,11 +64,11 @@ class GameRedisRepository(GameRepository):
         # Match the key format used in save_player_board
         key = f"game:{game_id}:player_id:{player_id}:ships"
         logger.debug(f"[get_player_board] Loading key: {key}")
-        
+
         raw = await self.redis_client.hget(key, "ships")  # ← because you used HSET
         if raw is None:
             return {}
-        
+
         try:
             return json.loads(raw)
         except Exception as e:
@@ -151,25 +151,25 @@ class GameRedisRepository(GameRepository):
         game_json = json.dumps(game_dict)
         logger.debug(f"Saving full game session to Redis key: {key}")
         logger.debug(f"Game JSON: {game_json}")
-        
+
         try:
             await self.redis_client.set(key, game_json, ex=86400)  # 24h TTL
         except Exception as e:
             logger.error(f"Failed to save game to Redis: {e}")
             raise
-        #game_dict = game.to_serializable_dict()
-        #logger.debug(f"INSIDE SAVE GAME TO REDIS {game_dict}")
-        #players = iter(game.players)
+        # game_dict = game.to_serializable_dict()
+        # logger.debug(f"INSIDE SAVE GAME TO REDIS {game_dict}")
+        # players = iter(game.players)
         # TODO add it to configuration
         # ttl_seconds = 86400  # 24h in seconds
-        #try:
+        # try:
         #    await self.redis_client.hset(f"game:{str(game_dict["game_id"])}", mapping={
         #        "player1": str(next(players)),
         #        "player2": str(next(players)),
         #        "status": "waiting_for_ships",
         #        "created_at": datetime.utcnow().isoformat()
         #    })   # type: ignore[misc]
-        #except Exception as e:
+        # except Exception as e:
         #    logger.error(f"NAO SALVO O JOGO ERROR: {e}")
 
     async def load_game_session(self, game_id: uuid.UUID) -> GameSession | None:
