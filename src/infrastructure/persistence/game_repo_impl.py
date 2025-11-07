@@ -139,7 +139,7 @@ class GameRedisRepository(GameRepository):
         logger.debug("ESTA NA POP FROM QUEUE")
         payload = json.dumps({"player_id": str(player)})
         logger.debug(f"ESSE O PAYLOAD {payload}")
-        await self.redis_client.lrem(queue_name, 0, payload)  # type: ignore
+        await self.redis_client.lrem(queue_name, 1, payload)  # type: ignore
 
     async def save_game_to_redis(
         self,

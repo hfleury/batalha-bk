@@ -523,11 +523,6 @@ class GameService:
                 data=create_player_game_data(game_data, opponent_player_id),
             ).to_dict()
 
-            # Send player-specific payloads
-            # await self.conn_manager.send_to_player(
-            #    player.player_id,
-            #    current_player_payload
-            # )
             await self.conn_manager.send_to_player(opponent_player_id, opponent_payload)
 
             # Return response for the current player (the one who made the request)
