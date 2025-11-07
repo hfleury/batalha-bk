@@ -142,9 +142,9 @@ class JWTSSettings(BaseSettings):
 class CORSSettings(BaseSettings):
     """Configuration settings for CORS."""
     # Use a comma-separated string in .env and convert to a list here
-    allow_origins: str = ["*"]
-    allow_methods: str = ["*"]
-    allow_headers: str = ["*"]
+    allow_origins: str = "*"
+    allow_methods: str = "*"
+    allow_headers: str = "*"
     allow_credentials: bool = True
 
     model_config = SettingsConfigDict(

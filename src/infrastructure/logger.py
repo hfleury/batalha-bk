@@ -10,7 +10,6 @@ from src.config import settings
 
 TRACE_LEVEL: int = 5
 
-# Add a custom logging level for TRACE, which is typically finer than DEBUG.
 logging.addLevelName(TRACE_LEVEL, "TRACE")
 
 

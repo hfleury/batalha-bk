@@ -352,7 +352,7 @@ class GameService:
         Returns:
             A StandardResponse indicating whether the shot was a hit or miss.
         """
-        game = await self.repository.load_game_session(str(request.game_id))
+        game = await self.repository.load_game_session(request.game_id)
         logger.debug(f"INSIDE THE SHOOT {game}")
         if game:
             logger.debug(f"GAME TRUE {game.status}")

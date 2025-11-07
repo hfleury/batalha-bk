@@ -18,6 +18,7 @@ from src.infrastructure.logger import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(appFast: FastAPI) -> AsyncGenerator[None, None]:
     """Manage the application's lifespan, handling startup and shutdown events."""
@@ -51,10 +52,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your domain
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows POST, OPTIONS, etc.
-    allow_headers=["*"],
+    allow_origins=settings.cors.allow_origins,
+    allow_credentials=settings.cors.allow_credentials,
+    allow_methods=settings.cors.allow_methods,
+    allow_headers=settings.cors.allow_headers,
 )
 
 app.include_router(router)

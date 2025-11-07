@@ -1,8 +1,11 @@
 """PostgreSQL implementation of the player registration repository."""
+import logging
 from uuid import UUID
 import asyncpg  # type: ignore
 from src.application.repositories.player_repository import PlayerRegistrationRepository
 from src.domain.player import Player
+
+logger = logging.getLogger(__name__)
 
 
 class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
@@ -31,18 +34,19 @@ class PostgresPlayerRegistrationRepository(PlayerRegistrationRepository):
                 )
                 if row:
                     return row["id"]  # type: ignore
-                # This case should ideally not be hit if RETURNING id is used
-                # on a successful insert.
-                # But as a fallback, we can raise an error.
                 raise ValueError("Failed to register player, no ID returned.")
             except asyncpg.UniqueViolationError as e:
                 if "username" in str(e).lower():
-                    raise ValueError(f"Username '{username}' is already taken.") from e
+                    logger.info(f"Username '{username}' is already taken.")
+                    raise ValueError(
+                        "A player with the given details already exists."
+                    ) from e
                 if "email" in str(e).lower():
-                    raise ValueError(f"Email '{email}' is already registered.") from e
+                    logger.info(f"Username '{email}' is already taken.")
+                    raise ValueError(
+                        "A player with the given details already exists."
+                    ) from e
 
-                # Re-raise with a more generic message if the specific column is
-                # not identified
                 raise ValueError(
                     "A player with the given details already exists."
                 ) from e

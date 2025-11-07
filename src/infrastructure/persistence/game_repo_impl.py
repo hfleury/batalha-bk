@@ -65,7 +65,7 @@ class GameRedisRepository(GameRepository):
         key = f"game:{game_id}:player_id:{player_id}:ships"
         logger.debug(f"[get_player_board] Loading key: {key}")
 
-        raw = await self.redis_client.hget(key, "ships")  # ← because you used HSET
+        raw = await self.redis_client.hget(key, "ships")  # type: ignore
         if raw is None:
             return {}
 
