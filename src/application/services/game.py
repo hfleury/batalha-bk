@@ -393,14 +393,10 @@ class GameService:
             if not opponent_board:
                 return StandardResponse(
                     status="error",
-                    message=f"Opponent{opponent_id} board not found"
-                    " of game:{request.game_id}",
+                    message=f"Opponent {opponent_id} board not found for game {request.game_id}",
                     action="resp_shoot",
                     data="",
                 )
-
-            game.current_turn = self._get_next_player(game, request.player_id)
-            await self.repository.save_game_to_redis(game)
 
             for ship_id, positions in opponent_board.items():
                 if request.target in positions:
@@ -412,10 +408,58 @@ class GameService:
                     )
                     is_sunk = set(hits.get(ship_id, [])) == set(positions)
 
+                    # 🔑 CHECK IF ALL SHIPS ARE SUNK (VICTORY CONDITION)
+                    all_ships_sunk = True
+                    for ship_id_check, ship_positions in opponent_board.items():
+                        ship_hits = set(hits.get(ship_id_check, []))
+                        if ship_hits != set(ship_positions):
+                            all_ships_sunk = False
+                            break
+
+                    if all_ships_sunk:
+                        # 🏆 Game over - declare winner
+                        game.status = GameStatus.FINISHED
+                        game.end_datetime = int(time.time())
+                        await self.repository.save_game_to_redis(game)
+                        await self.end_game(game.game_id)
+
+                        # Notify both players of victory
+                        victory_msg = StandardResponse(
+                            status="game_over",
+                            message=f"Player {request.player_id} wins! All opponent ships destroyed!",
+                            action="game_ended",
+                            data={
+                                "winner": str(request.player_id),
+                                "game_id": str(game.game_id)
+                            }
+                        )
+
+                        for player_id in game.players:
+                            if self.conn_manager.is_player_connected(player_id):
+                                await self.conn_manager.send_to_player(player_id, victory_msg.to_dict())
+
+                        return StandardResponse(
+                            status="game_over",
+                            message=f"Player {request.player_id} wins! All opponent ships destroyed!",
+                            action="resp_shoot",
+                            data={
+                                "status": "hit",
+                                "target": request.target,
+                                "ship_id": ship_id,
+                                "sunk": is_sunk,
+                                "game_over": True,
+                                "winner": str(request.player_id)
+                            },
+                        )
+
+                    # Regular hit - continue game
+                    game.current_turn = self._get_next_player(game, request.player_id)
+                    await self.repository.save_game_to_redis(game)
+
                     return StandardResponse(
                         status="hit",
-                        message=f"the shoot of the player{request.player_id}"
-                        " hit the target:{request.target}",
+                        message=f"the shoot of the player {request.player_id}"
+                        f" hit the target: {request.target}",
                         action="resp_shoot",
                         data={
                             "status": "hit",
@@ -426,8 +470,9 @@ class GameService:
                         },
                     )
 
-                # game.current_turn = self._get_next_player(game, request.player_id)
-                # await self.repository.save_game_session(game)
+            # Miss - continue game
+            game.current_turn = self._get_next_player(game, request.player_id)
+            await self.repository.save_game_to_redis(game)
 
             return StandardResponse(
                 status="miss",
