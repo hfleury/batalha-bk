@@ -117,3 +117,23 @@ class GameRepository(ABC):
             bool: if the player exist on the game id
         """
         pass
+
+    @abstractmethod
+    async def is_player_in_active_game(self, player_id: uuid.UUID) -> bool:
+        """Check if player is in an active (non-finished) game."""
+        pass
+
+    @abstractmethod
+    async def is_player_in_queue(self, queue_name: str, player_id: uuid.UUID) -> bool:
+        """Check if player is already in the matchmaking queue."""
+        pass
+
+    @abstractmethod
+    async def set_player_active_game(self, player_id: uuid.UUID, game_id: uuid.UUID) -> None:
+        """Set the active game for a player."""
+        pass
+
+    @abstractmethod
+    async def clear_player_active_game(self, player_id: uuid.UUID) -> None:
+        """Clear the active game for a player."""
+        pass

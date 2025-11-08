@@ -8,7 +8,7 @@ from typing import Any, List
 
 from pydantic import ValidationError
 
-from src.domain.game import GameSession, GameStatus, PlayerBoard
+from src.domain.game import GameSession, PlayerBoard, GameStatus
 from src.domain.player import Player
 from src.application.repositories.game_repository import GameRepository
 from src.infrastructure.manager.connection_manager import ConnectionManager
@@ -207,6 +207,7 @@ class GameService:
             )
 
             game_session.current_turn = first_turn
+            game_session.status = GameStatus.IN_PROGRESS
             await self.repository.save_game_to_redis(game_session)
 
             battle_msg = StandardResponse(
@@ -356,7 +357,7 @@ class GameService:
         logger.debug(f"INSIDE THE SHOOT {game}")
         if game:
             logger.debug(f"GAME TRUE {game.status}")
-            if game.status != GameStatus.IN_PROGRESS:
+            if game.status != "in_progress":
                 return StandardResponse(
                     status="error",
                     message="Game is not active",
@@ -448,21 +449,54 @@ class GameService:
         )
 
     async def find_game_session(self, player: FindGameRequest) -> StandardResponse:
-        """Handles a player's request to find and join a game.
-
-        If an opponent is waiting in the queue, a new game is created and
-        both players are notified. Otherwise, the current player is added
-        to the queue.
-
-        Args:
-            player: The validated request containing the player's ID.
-
-        Returns:
-            A StandardResponse indicating if a game was created or if the player is
-            waiting.
-        """
         queue_key = "game:queue"
 
+        # 🔍 Check if player is in an active game
+        if await self.repository.is_player_in_active_game(player.player_id):
+            game_id_str = await self.repository.redis_client.get(f"player:{player.player_id}:active_game")
+            if game_id_str:
+                game = await self.repository.load_game_session(uuid.UUID(game_id_str))
+                if game and game.status != "finished":
+                    # 🔍 Check if opponent is still connected
+                    opponent_id = await self.repository.get_opponent_id(
+                        uuid.UUID(game_id_str),
+                        Player(id=player.player_id)
+                    )
+
+                    # If opponent exists and is connected, resume the game
+                    if opponent_id and self.conn_manager.is_player_connected(opponent_id):
+                        logger.info(f"Resuming game {game_id_str} for player {player.player_id}")
+
+                        # Associate player with game in connection manager
+                        self.conn_manager.add_player_to_game(player.player_id, uuid.UUID(game_id_str))
+
+                        return StandardResponse(
+                            status="resume_game",
+                            message="Reconnected to existing game",
+                            action="res_find_game_session",
+                            data={
+                                "game_id": game_id_str,
+                                "status": game.status.value,
+                                "current_turn": str(game.current_turn) if game.current_turn else None,
+                                "resume": True
+                            },
+                        )
+                    else:
+                        # Opponent is not connected - game is dead
+                        logger.info(f"Opponent {opponent_id} is offline. Clearing dead game for {player.player_id}")
+                        await self.repository.clear_player_active_game(player.player_id)
+                        # Fall through to treat as new player
+
+        # 🔍 Check if player is already in queue
+        if await self.repository.is_player_in_queue(queue_key, player.player_id):
+            return StandardResponse(
+                status="waiting",
+                message="Already waiting for another player",
+                action="res_find_game_session",
+                data=str(player.player_id),
+            )
+
+        # 🔍 Rest of your existing logic (get opponent, create game, etc.)
         opponent_player_id = await self.repository.get_opponent_from_queue(
             queue_key, player.player_id
         )
@@ -470,10 +504,20 @@ class GameService:
 
         if opponent_player_id:
             await self.repository.pop_from_queue(queue_key, opponent_player_id)
-            logger.info(f"ESTA AQUIIII {opponent_player_id}")
+            logger.info(f"Pairing player {player.player_id} with opponent {opponent_player_id}")
+
+            if opponent_player_id == player.player_id:
+                logger.warning("Opponent is same as current player - returning to queue")
+                await self.repository.push_to_queue(queue_key, player.player_id)
+                return StandardResponse(
+                    status="error",
+                    message="Invalid opponent found",
+                    action="res_find_game_session",
+                    data="",
+                )
+
             game_id = uuid.uuid4()
             now = int(time.time())
-
             game_data = GameSession(
                 game_id=game_id,
                 start_datetime=now,
@@ -482,33 +526,39 @@ class GameService:
                     opponent_player_id: PlayerBoard(),
                     player.player_id: PlayerBoard(),
                 },
-                status=GameStatus.IN_PROGRESS,
+                status=GameStatus.PLACE_SHIP,
             )
             logger.debug(f"AFTER CREATE GAMESESSION {game_data}")
+
             try:
                 await self.repository.save_game_to_redis(game_data)
-            except Exception as e:
-                logger.error(f"Game Not saved ERROR: {e}")
+                await self.repository.set_player_active_game(player.player_id, game_id)
+                await self.repository.set_player_active_game(opponent_player_id, game_id)
 
-            # Create player-specific game data (hide opponent info)
-            def create_player_game_data(
-                game_session: GameSession,
-                player_id: uuid.UUID
-            ) -> dict[str, Any]:
-                """Create game data payload specific
-                to a player (hides opponent info).
-                """
+                # 🔑 Associate both players with the game in connection manager
+                self.conn_manager.add_player_to_game(player.player_id, game_id)
+                # Note: opponent will be associated when they receive their "ready" message
+
+            except Exception as e:
+                logger.error(f"Game not saved ERROR: {e}")
+                await self.repository.push_to_queue(queue_key, player.player_id)
+                await self.repository.push_to_queue(queue_key, opponent_player_id)
+                return StandardResponse(
+                    status="error",
+                    message="Failed to create game",
+                    action="res_find_game_session",
+                    data="",
+                )
+
+            def create_player_game_data(game_session: GameSession, player_id: uuid.UUID) -> dict[str, Any]:
                 return {
                     "game_id": str(game_session.game_id),
                     "start_datetime": game_session.start_datetime,
                     "end_datetime": game_session.end_datetime,
-                    "players": (str(player_id)),
-                    # "current_turn": str(game_session.current_turn),
+                    "players": str(player_id),
                     "status": game_session.status.value,
-                    # "first_turn": str(game_session.current_turn),
                 }
 
-            # Create separate payloads for each player
             current_player_payload = StandardResponse(
                 status="ready",
                 message="Game has started",
@@ -523,16 +573,12 @@ class GameService:
                 data=create_player_game_data(game_data, opponent_player_id),
             ).to_dict()
 
+            # When opponent receives this, they should also call add_player_to_game
             await self.conn_manager.send_to_player(opponent_player_id, opponent_payload)
-
-            # Return response for the current player (the one who made the request)
             return current_player_payload
 
-        # No player waiting, put current player in queue
-        await self.repository.push_to_queue(
-            queue_key,
-            player.player_id,
-        )
+        # No opponent - add to queue
+        await self.repository.push_to_queue(queue_key, player.player_id)
         return StandardResponse(
             status="waiting",
             message="Waiting for another player",
@@ -578,3 +624,14 @@ class GameService:
         if player1_ready and player2_ready:
             return True
         return False
+
+    async def end_game(self, game_id: uuid.UUID) -> None:
+        """Clean up game resources when game ends."""
+        game = await self.repository.load_game_session(game_id)
+        if game:
+            # Clear active game for all players
+            for player_id in game.players:
+                await self.repository.clear_player_active_game(player_id)
+
+            # Optionally delete game session (or let TTL expire)
+            # await self.redis_client.delete(f"game:{game_id}")

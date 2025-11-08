@@ -157,20 +157,6 @@ class GameRedisRepository(GameRepository):
         except Exception as e:
             logger.error(f"Failed to save game to Redis: {e}")
             raise
-        # game_dict = game.to_serializable_dict()
-        # logger.debug(f"INSIDE SAVE GAME TO REDIS {game_dict}")
-        # players = iter(game.players)
-        # TODO add it to configuration
-        # ttl_seconds = 86400  # 24h in seconds
-        # try:
-        #    await self.redis_client.hset(f"game:{str(game_dict["game_id"])}", mapping={
-        #        "player1": str(next(players)),
-        #        "player2": str(next(players)),
-        #        "status": "waiting_for_ships",
-        #        "created_at": datetime.utcnow().isoformat()
-        #    })   # type: ignore[misc]
-        # except Exception as e:
-        #    logger.error(f"NAO SALVO O JOGO ERROR: {e}")
 
     async def load_game_session(self, game_id: uuid.UUID) -> GameSession | None:
         key = f"game:{game_id}"
@@ -238,3 +224,44 @@ class GameRedisRepository(GameRepository):
         logger.debug(f"KEY FOR THE EXIST PLAYER ON GAME {key}")
         exist: bool = await self.redis_client.exists(key)
         return exist
+
+    async def is_player_in_active_game(self, player_id: uuid.UUID) -> bool:
+        """Check if player is in an active (non-finished) game."""
+        game_id_str = await self.redis_client.get(f"player:{player_id}:active_game")
+        if not game_id_str:
+            return False
+
+        game = await self.load_game_session(uuid.UUID(game_id_str))
+        return game is not None and game.status != "finished"
+
+    async def is_player_in_queue(self, queue_name: str, player_id: uuid.UUID) -> bool:
+        """Check if player is already in the matchmaking queue."""
+        try:
+            players = await self.redis_client.lrange(queue_name, 0, -1)
+            player_str = str(player_id)
+            for raw_data in players:
+                if isinstance(raw_data, bytes):
+                    raw_data = raw_data.decode("utf-8")
+                try:
+                    data = json.loads(raw_data)
+                    if data.get("player_id") == player_str:
+                        return True
+                except (json.JSONDecodeError, ValueError):
+                    continue
+            return False
+        except Exception as e:
+            logger.error(f"Error checking queue membership: {e}")
+            return False
+
+    async def set_player_active_game(self, player_id: uuid.UUID, game_id: uuid.UUID) -> None:
+        """Set the active game for a player."""
+        logger.debug(f"[DEBUG] set_player_active_game called with {player_id}, {game_id}")
+        await self.redis_client.set(
+            f"player:{player_id}:active_game",
+            str(game_id),
+            ex=86400  # 24h TTL
+        )
+
+    async def clear_player_active_game(self, player_id: uuid.UUID) -> None:
+        """Clear the active game for a player."""
+        await self.redis_client.delete(f"player:{player_id}:active_game")

@@ -16,6 +16,7 @@ class ConnectionManager:
 
     def __init__(self, max_players: int = 2) -> None:
         self.connected_players: dict[uuid.UUID, PlayerConnection] = {}
+        self.player_game_map: dict[uuid.UUID, uuid.UUID] = {}  # player_id → game_id
         self.max_players = max_players
 
     def add_player(self, player_conn: PlayerConnection) -> None:
@@ -28,6 +29,8 @@ class ConnectionManager:
         """Remove a player from the connection list by ID."""
         if player_id in self.connected_players and player_id is not None:
             del self.connected_players[player_id]
+            if player_id in self.player_game_map:
+                del self.player_game_map[player_id]
             logger.info(
                 f"Player {player_id} removed. Remaining: {len(self.connected_players)}"
             )
@@ -101,3 +104,16 @@ class ConnectionManager:
                     f"Failed to send message to Player: {player_id} error: {e}"
                 )
                 await self._remove_and_close(player_id)
+
+    def add_player_to_game(self, player_id: uuid.UUID, game_id: uuid.UUID) -> None:
+        """Associate a connected player with a specific game."""
+        self.player_game_map[player_id] = game_id
+        logger.debug(f"Player {player_id} associated with game {game_id}")
+
+    def is_player_connected(self, player_id: uuid.UUID) -> bool:
+        """Check if a player is currently connected via WebSocket."""
+        return player_id in self.connected_players\
+
+    def get_player_game(self, player_id: uuid.UUID) -> uuid.UUID | None:
+        """Get the game ID that a connected player is currently in."""
+        return self.player_game_map.get(player_id)

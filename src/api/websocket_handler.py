@@ -20,7 +20,6 @@ game_repo = GameRedisRepository()
 game_service = GameService(game_repo, conn_manager)
 logger = logging.getLogger(__name__)
 
-
 async def _register_player(
     websocket: WebSocket,
     trace_id: str
@@ -60,11 +59,60 @@ async def _register_player(
 
         logger.info(f"[{trace_id}] Player {player_id} connected and registered")
 
+        # Only check if the first message doesn't have an action (pure reconnect)
         action = payload.get("action")
+        if not action:
+            # This is a pure reconnection - check for active game
+            # In the resume section
+            if await game_repo.is_player_in_active_game(player_id):
+                game_id_str = await game_repo.redis_client.get(f"player:{player_id}:active_game")
+                if game_id_str:
+                    try:
+                        game = await game_repo.load_game_session(uuid.UUID(game_id_str))
+                        if game and game.status != "finished":
+                            try:
+                                opponent_id = await game_repo.get_opponent_id(uuid.UUID(game_id_str), player)
+                                if opponent_id is not None and conn_manager.is_player_connected(opponent_id):
+                                    # Resume the game
+                                    conn_manager.add_player_to_game(player_id, uuid.UUID(game_id_str))
+
+                                    resume_response = StandardResponse(
+                                        status="resume_game",
+                                        message="Reconnected to existing game",
+                                        action="game_resumed",
+                                        data={
+                                            "game_id": game_id_str,
+                                            "status": game.status,
+                                            "current_turn": str(game.current_turn) if game.current_turn else None,
+                                            "your_player_id": str(player_id),
+                                            "opponent_id": str(opponent_id)
+                                        }
+                                    )
+                                    await websocket.send_json(resume_response.to_dict())
+                                    return player_id, player
+                            except Exception as opp_error:
+                                logger.warning(f"[{trace_id}] Error checking opponent: {opp_error}")
+                    except Exception as game_error:
+                        logger.warning(f"[{trace_id}] Error loading game: {game_error}")
+
         if action:
             initial_response: StandardResponse = await game_service.handle_action(
                 action, payload, player
             )
+            # If the action was successful and created/joined a game, associate with game
+            if (action == "find_game_session" and
+                initial_response.status in ["ready", "resume_game"] and
+                initial_response.data and
+                isinstance(initial_response.data, dict)):
+
+                game_id_str = initial_response.data.get("game_id")
+                if game_id_str:
+                    try:
+                        game_id = uuid.UUID(game_id_str)
+                        conn_manager.add_player_to_game(player_id, game_id)
+                    except ValueError:
+                        logger.warning(f"Invalid game_id in response: {game_id_str}")
+
             await websocket.send_json(initial_response.to_dict())
 
         return player_id, player
@@ -76,9 +124,10 @@ async def _register_player(
         })
         return None, None
     except Exception as e:
+        import traceback
         logger.error(f"[{trace_id}] Unexpected ERROR during registration: {e}")
+        logger.error(f"[{trace_id}] Full traceback: {traceback.format_exc()}")
         return None, None
-
 
 async def _message_loop(
     websocket: WebSocket,
@@ -93,8 +142,16 @@ async def _message_loop(
         handler_response: StandardResponse = await game_service.handle_action(
             action, payload, player
         )
-        await websocket.send_json(handler_response.to_dict())
 
+        # 🔑 Automatically associate player with game when they perform game actions
+        if action in ["place_ships", "shoot"] and payload.get("game_id"):
+            try:
+                game_id = uuid.UUID(payload["game_id"])
+                conn_manager.add_player_to_game(player.id, game_id)
+            except ValueError:
+                logger.warning(f"Invalid game_id in {action}: {payload.get('game_id')}")
+
+        await websocket.send_json(handler_response.to_dict())
 
 @router.websocket("/ws/connect")
 async def websocket_connection(websocket: WebSocket) -> None:
@@ -122,6 +179,6 @@ async def websocket_connection(websocket: WebSocket) -> None:
             await websocket.send_json({"status": "error", "message": str(exc)})
     finally:
         if player_id:
-            queue_key = "matchmaking:queue"
+            queue_key = "game:queue"
             await game_repo.pop_from_queue(queue_key, player_id)
             conn_manager.remove_player(player_id)
