@@ -365,7 +365,6 @@ class GameService:
                     data="",
                 )
 
-            # Check if it's the shooter's turn
             if request.player_id != game.current_turn:
                 return StandardResponse(
                     status="error",
