@@ -216,9 +216,9 @@ class GameService:
                 status="battle_start",
                 message="Both players have placed the ships",
                 action="place_ship_response",
-                game_id=str(game_session.game_id),
-                player_id=str(player.id),
                 data={
+                    "game_id":str(game_session.game_id),
+                    "player_id":str(player.id),
                     "firstTurn": str(first_turn),
                 },
             )
@@ -240,9 +240,9 @@ class GameService:
                 status="battle_start",
                 message="Ships placed. Battle starting!",
                 action="place_ship_response",
-                game_id=str(game_session.game_id),
-                player_id=str(player.id),
                 data={
+                    "game_id": str(game_session.game_id),
+                    "player_id": str(player.id),
                     "firstTurn": str(first_turn),
                 },
             )
@@ -251,9 +251,10 @@ class GameService:
                 status="shipsPlaced",
                 message=f"Ships placed for player {player.id}",
                 action="place_ship_response",
-                game_id=str(game_session.game_id),
-                player_id=str(player.id),
-                data=""
+                data={
+                    "game_id": str(game_session.game_id),
+                    "player_id":str(player.id),
+                }
             )
 
     async def start_game(self, request: StartGameRequest) -> StandardResponse:
