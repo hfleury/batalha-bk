@@ -235,7 +235,9 @@ class GameService:
                 status="battle_start",
                 message="Ships placed. Battle starting!",
                 action="place_ship_response",
-                data="",
+                data={
+                    "firstTurn": str(first_turn),
+                },
             )
 
         return StandardResponse(
