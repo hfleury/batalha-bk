@@ -151,7 +151,7 @@ async def _message_loop(
         data = await websocket.receive_text()
         payload = json.loads(data)
         action = payload.get("action")
-
+        logger.debug(f"PAYLOAD {payload}")
         handler_response: StandardResponse = await game_service.handle_action(
             action, payload, player
         )

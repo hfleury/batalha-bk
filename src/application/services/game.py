@@ -115,6 +115,7 @@ class GameService:
             return await self.get_game_info(req_player_info)
 
         elif action == "shoot":
+            logger.debug(f"ACTION SHOOT {payload}")
             try:
                 req_shoot = ShootRequest(
                     game_id=payload["game_id"],
@@ -365,6 +366,7 @@ class GameService:
         Returns:
             A StandardResponse indicating whether the shot was a hit or miss.
         """
+        logger.debug(f"INSIDE THE SHOOT FUNCTION {request}")
         game = await self.repository.load_game_session(request.game_id)
         logger.debug(f"INSIDE THE SHOOT {game}")
         if game:
@@ -467,7 +469,7 @@ class GameService:
                     # Regular hit - continue game
                     game.current_turn = self._get_next_player(game, request.player_id)
                     await self.repository.save_game_to_redis(game)
-
+                    logger.debug("BEFORE SEND HIT")
                     return StandardResponse(
                         status="hit",
                         message=f"the shoot of the player {request.player_id}"
@@ -485,7 +487,7 @@ class GameService:
             # Miss - continue game
             game.current_turn = self._get_next_player(game, request.player_id)
             await self.repository.save_game_to_redis(game)
-
+            logger.debug("MISS THE SHOOT")
             return StandardResponse(
                 status="miss",
                 message=f"the shoot of the player {request.player_id}"
