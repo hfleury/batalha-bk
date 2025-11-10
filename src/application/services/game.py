@@ -215,7 +215,7 @@ class GameService:
                 message="Both players have placed the ships",
                 action="place_ship_response",
                 game_id=str(game_session.game_id),
-                player_id=srt(player.id),
+                player_id=str(player.id),
                 data={
                     "firstTurn": str(first_turn),
                 },
@@ -238,7 +238,7 @@ class GameService:
                 message="Ships placed. Battle starting!",
                 action="place_ship_response",
                 game_id=str(game_session.game_id),
-                player_id=srt(player.id),
+                player_id=str(player.id),
                 data={
                     "firstTurn": str(first_turn),
                 },
@@ -249,7 +249,7 @@ class GameService:
                 message=f"Ships placed for player {player.id}",
                 action="place_ship_response",
                 game_id=str(game_session.game_id),
-                player_id=srt(player.id),
+                player_id=str(player.id),
                 data=""
             )
 
