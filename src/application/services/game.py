@@ -172,9 +172,11 @@ class GameService:
             await self.repository.save_player_board(game_id, player, request.ships)
         except Exception as ex:
             logger.debug(f"EXCEPTION ON PLACE SHIPS SAVING PLAYER BOARD {ex}")
+
         logger.debug("AFTER SAVE PLAYER BOARD")
         game_session = await self.repository.load_game_session(game_id=game_id_uuid)
         logger.debug(f"LOAD GAME SESSION {game_session}")
+
         if not game_session:
             return StandardResponse(
                 status="error",
@@ -220,6 +222,7 @@ class GameService:
                     "firstTurn": str(first_turn),
                 },
             )
+            logger.debug(f"BATTLE MSG SENT TO THE FRONT END {battle_msg} and {battle_msg.to_dict()}")
             try:
                 await self.conn_manager.send_to_player(
                     player1_id,
