@@ -471,7 +471,7 @@ class GameService:
                     opponent_notification = StandardResponse(
                         status="hit",
                         message=f"Opponent shot hit your ship at {request.target}!",
-                        action="opponent_shot_result",
+                        action="enemy_shoot",
                         data={
                             "result": "hit",
                             "cell": request.target,
@@ -508,7 +508,7 @@ class GameService:
             opponent_notification = StandardResponse(
                 status="miss",
                 message=f"Opponent shot missed at {request.target}",
-                action="opponent_shot_result",
+                action="enemy_shoot",
                 data={
                     "result": "miss",
                     "cell": request.target,
