@@ -71,3 +71,17 @@ class ShipPlacement(BaseModel):
                     "Invalid ship coordinates. Must be in the format 'A1', 'B2', etc."
                 )
         return ships
+
+class PassTurn(BaseModel):
+    """Schema for validating a player's pass turn request.
+
+    Attributes:
+        player_id: The ID of the player placing the ships.
+        game_id: The ID of the game the player is playing
+    """
+
+    player_id: uuid.UUID
+    game_id: uuid.UUID
+    _validate_uuids = field_validator("game_id", "player_id", mode="before")(
+        ensure_uuid
+    )

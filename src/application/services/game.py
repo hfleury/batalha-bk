@@ -16,6 +16,7 @@ from src.api.v1.schemas.game_actions import (
     FindGameRequest,
     ShootRequest,
     StartGameRequest,
+    PassTurn,
 )
 from src.api.v1.schemas.place_ships import (
     ShipPlacementRequest,
@@ -146,6 +147,22 @@ class GameService:
                     data="",
                 )
             return await self.find_game_session(req_find_game_session)
+
+        elif action == "pass_turn":
+            try:
+                req_pass_turn = PassTurn(
+                    player_id=uuid.UUID(payload["player_id"]),
+                    game_id=uuid.UUID(payload["game_id"])
+                )
+            except (KeyError, ValidationError) as e:
+                logger.error(f"{action} validation error: {e}")
+                return StandardResponse(
+                    status="error",
+                    message=f"Invalid request payload: {e}",
+                    action="error_confirm_pass_turn",
+                    data="",
+                )
+            return await self.pass_turn(req_pass_turn)
 
         else:
             return StandardResponse(
@@ -729,3 +746,84 @@ class GameService:
 
             # Optionally delete game session (or let TTL expire)
             # await self.redis_client.delete(f"game:{game_id}")
+
+    async def pass_turn(self, pass_turn: PassTurn) -> None:
+        """Handles a player's request to pass their turn to the opponent.
+
+        Args:
+            pass_turn: The validated request containing player and game IDs.
+
+        Returns:
+            A StandardResponse indicating the outcome of the turn pass.
+        """
+        logger.debug(f"INSIDE PASS_TURN FUNCTION {pass_turn}")
+
+        # Load the current game
+        game = await self.repository.load_game_session(pass_turn.game_id)
+        if not game:
+            return StandardResponse(
+                status="error",
+                message="Game not found",
+                action="error_confirm_pass_turn",
+                data="",
+            )
+
+        # Check if game is still active
+        if game.status != "in_progress":
+            return StandardResponse(
+                status="error",
+                message="Game is not active",
+                action="error_confirm_pass_turn",
+                data="",
+            )
+
+        # Verify that the requesting player is the one whose turn it currently is
+        if pass_turn.player_id != game.current_turn:
+            return StandardResponse(
+                status="error",
+                message="It's not your turn to pass",
+                action="error_confirm_pass_turn",
+                data="",
+            )
+
+        # Get the opponent
+        opponent_id = await self.repository.get_opponent_id(pass_turn.game_id, Player(id=pass_turn.player_id))
+        if not opponent_id:
+            return StandardResponse(
+                status="error",
+                message="No opponent found",
+                action="error_confirm_pass_turn",
+                data="",
+            )
+
+        # Switch turn to opponent
+        game.current_turn = opponent_id
+        await self.repository.save_game_to_redis(game)
+
+        # Notify opponent that it's their turn
+        turn_notification = StandardResponse(
+            status="ok",
+            message=f"Opponent has passed their turn. It's now your turn!",
+            action="confirm_pass_turn",
+            data={
+                "new_turn_player": str(opponent_id),
+                "previous_player": str(pass_turn.player_id),
+                "game_id": str(pass_turn.game_id)
+            }
+        )
+
+        # Send notification to opponent
+        if self.conn_manager.is_player_connected(opponent_id):
+            await self.conn_manager.send_to_player(opponent_id, turn_notification.to_dict())
+            logger.info(f"Turn passed notification sent to opponent {opponent_id}")
+
+        # Return confirmation to the player who passed their turn
+        return StandardResponse(
+            status="ok",
+            message="Turn passed successfully",
+            action="confirm_pass_turn",
+            data={
+                "new_turn_player": str(opponent_id),
+                "game_id": str(pass_turn.game_id)
+            },
+        )
