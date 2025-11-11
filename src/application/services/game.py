@@ -809,7 +809,7 @@ class GameService:
             message=f"Opponent has passed their turn. It's now your turn!",
             action="confirm_pass_turn",
             data={
-                "current_turn": str(opponent_id),
+                "currentTurn": str(opponent_id),
                 "previous_turn": str(pass_turn.player_id),
                 "game_id": str(pass_turn.game_id)
             }
