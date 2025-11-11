@@ -467,6 +467,25 @@ class GameService:
                     game.current_turn = self._get_next_player(game, request.player_id)
                     await self.repository.save_game_to_redis(game)
                     logger.debug("BEFORE SEND HIT")
+
+                    opponent_notification = StandardResponse(
+                        status="hit",
+                        message=f"Opponent shot hit your ship at {request.target}!",
+                        action="opponent_shot_result",
+                        data={
+                            "result": "hit",
+                            "cell": request.target,
+                            "ship_id": ship_id,
+                            "sunk": is_sunk,
+                            "opponent_turn": str(request.player_id),
+                            "your_turn_next": str(game.current_turn) == str(opponent_id)
+                        }
+                    )
+
+                    # Notify opponent
+                    if self.conn_manager.is_player_connected(opponent_id):
+                        await self.conn_manager.send_to_player(opponent_id, opponent_notification.to_dict())
+
                     return StandardResponse(
                         status="hit",
                         message=f"the shoot of the player {request.player_id}"
@@ -485,6 +504,23 @@ class GameService:
             game.current_turn = self._get_next_player(game, request.player_id)
             await self.repository.save_game_to_redis(game)
             logger.debug("MISS THE SHOOT")
+
+            opponent_notification = StandardResponse(
+                status="miss",
+                message=f"Opponent shot missed at {request.target}",
+                action="opponent_shot_result",
+                data={
+                    "result": "miss",
+                    "cell": request.target,
+                    "opponent_turn": str(request.player_id),
+                    "your_turn_next": str(game.current_turn) == str(opponent_id)
+                }
+            )
+
+            # Notify opponent
+            if self.conn_manager.is_player_connected(opponent_id):
+                await self.conn_manager.send_to_player(opponent_id, opponent_notification.to_dict())
+
             return StandardResponse(
                 status="miss",
                 message=f"the shoot of the player {request.player_id}"
