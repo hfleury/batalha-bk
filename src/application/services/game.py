@@ -127,7 +127,7 @@ class GameService:
                 return StandardResponse(
                     status="error",
                     message=f"Invalid request payload: {e}",
-                    action="resp_shoot",
+                    action="shoot_result",
                     data="",
                 )
             return await self.shoot(req_shoot)
@@ -375,7 +375,7 @@ class GameService:
                 return StandardResponse(
                     status="error",
                     message="Game is not active",
-                    action="resp_shoot",
+                    action="shoot_result",
                     data="",
                 )
 
@@ -383,7 +383,7 @@ class GameService:
                 return StandardResponse(
                     status="error",
                     message="It's not your turn",
-                    action="resp_shoot",
+                    action="shoot_result",
                     data="",
                 )
 
@@ -396,7 +396,7 @@ class GameService:
                 return StandardResponse(
                     status="error",
                     message="No opponent found",
-                    action="resp_shoot",
+                    action="shoot_result",
                     data="",
                 )
 
@@ -408,7 +408,7 @@ class GameService:
                 return StandardResponse(
                     status="error",
                     message=f"Opponent {opponent_id} board not found for game {request.game_id}",
-                    action="resp_shoot",
+                    action="shoot_result",
                     data="",
                 )
 
@@ -422,7 +422,6 @@ class GameService:
                     )
                     is_sunk = set(hits.get(ship_id, [])) == set(positions)
 
-                    # 🔑 CHECK IF ALL SHIPS ARE SUNK (VICTORY CONDITION)
                     all_ships_sunk = True
                     for ship_id_check, ship_positions in opponent_board.items():
                         ship_hits = set(hits.get(ship_id_check, []))
@@ -431,13 +430,11 @@ class GameService:
                             break
 
                     if all_ships_sunk:
-                        # 🏆 Game over - declare winner
                         game.status = GameStatus.FINISHED
                         game.end_datetime = int(time.time())
                         await self.repository.save_game_to_redis(game)
                         await self.end_game(game.game_id)
 
-                        # Notify both players of victory
                         victory_msg = StandardResponse(
                             status="game_over",
                             message=f"Player {request.player_id} wins! All opponent ships destroyed!",
@@ -455,10 +452,10 @@ class GameService:
                         return StandardResponse(
                             status="game_over",
                             message=f"Player {request.player_id} wins! All opponent ships destroyed!",
-                            action="resp_shoot",
+                            action="shoot_result",
                             data={
-                                "status": "hit",
-                                "target": request.target,
+                                "result": "hit",
+                                "cell": request.target,
                                 "ship_id": ship_id,
                                 "sunk": is_sunk,
                                 "game_over": True,
@@ -474,10 +471,10 @@ class GameService:
                         status="hit",
                         message=f"the shoot of the player {request.player_id}"
                         f" hit the target: {request.target}",
-                        action="resp_shoot",
+                        action="shoot_result",
                         data={
-                            "status": "hit",
-                            "target": request.target,
+                            "result": "hit",
+                            "cell": request.target,
                             "ship_id": ship_id,
                             "sunk": is_sunk,
                             "player_turn": str(game.current_turn),
@@ -492,10 +489,10 @@ class GameService:
                 status="miss",
                 message=f"the shoot of the player {request.player_id}"
                 f" on target: {request.target}",
-                action="resp_shoot",
+                action="shoot_result",
                 data={
-                    "status": "miss",
-                    "target": request.target,
+                    "result": "miss",
+                    "cell": request.target,
                     "player_turn": str(game.current_turn),
                 },
             )
