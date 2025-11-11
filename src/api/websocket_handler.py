@@ -156,7 +156,6 @@ async def _message_loop(
             action, payload, player
         )
 
-        # 🔑 Automatically associate player with game when they perform game actions
         if action in ["place_ships", "shoot"] and payload.get("game_id"):
             try:
                 game_id = uuid.UUID(payload["game_id"])

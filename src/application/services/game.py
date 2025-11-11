@@ -149,7 +149,9 @@ class GameService:
             return await self.find_game_session(req_find_game_session)
 
         elif action == "pass_turn":
+            logger.debug("ENTROU NO PASS TURN")
             try:
+                logger.debug("INSIDE TRY OF PASS TURN")
                 req_pass_turn = PassTurn(
                     player_id=uuid.UUID(payload["player_id"]),
                     game_id=uuid.UUID(payload["game_id"])
@@ -756,6 +758,7 @@ class GameService:
         Returns:
             A StandardResponse indicating the outcome of the turn pass.
         """
+        logger.debug("INSIDE THE FUNCTION PASS TURN")
         logger.debug(f"INSIDE PASS_TURN FUNCTION {pass_turn}")
 
         # Load the current game
@@ -806,8 +809,8 @@ class GameService:
             message=f"Opponent has passed their turn. It's now your turn!",
             action="confirm_pass_turn",
             data={
-                "new_turn_player": str(opponent_id),
-                "previous_player": str(pass_turn.player_id),
+                "current_turn": str(opponent_id),
+                "previous_turn": str(pass_turn.player_id),
                 "game_id": str(pass_turn.game_id)
             }
         )
