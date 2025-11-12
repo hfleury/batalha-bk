@@ -72,6 +72,7 @@ class ShipPlacement(BaseModel):
                 )
         return ships
 
+
 class PassTurn(BaseModel):
     """Schema for validating a player's pass turn request.
 

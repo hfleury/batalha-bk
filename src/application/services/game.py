@@ -237,12 +237,15 @@ class GameService:
                 message="Both players have placed the ships",
                 action="place_ship_response",
                 data={
-                    "game_id":str(game_session.game_id),
-                    "player_id":str(player.id),
+                    "game_id": str(game_session.game_id),
+                    "player_id": str(player.id),
                     "firstTurn": str(first_turn),
                 },
             )
-            logger.debug(f"BATTLE MSG SENT TO THE FRONT END {battle_msg} and {battle_msg.to_dict()}")
+            logger.debug(
+                f"BATTLE MSG SENT TO THE FRONT END"
+                f"{battle_msg} and {battle_msg.to_dict()}"
+            )
             try:
                 await self.conn_manager.send_to_player(
                     player1_id,
@@ -273,7 +276,7 @@ class GameService:
                 action="place_ship_response",
                 data={
                     "game_id": str(game_session.game_id),
-                    "player_id":str(player.id),
+                    "player_id": str(player.id),
                 }
             )
 
@@ -426,7 +429,10 @@ class GameService:
             if not opponent_board:
                 return StandardResponse(
                     status="error",
-                    message=f"Opponent {opponent_id} board not found for game {request.game_id}",
+                    message=(
+                        f"Opponent {opponent_id} board not"
+                        f" found for game {request.game_id}"
+                    ),
                     action="shoot_result",
                     data="",
                 )
@@ -456,7 +462,10 @@ class GameService:
 
                         victory_msg = StandardResponse(
                             status="game_over",
-                            message=f"Player {request.player_id} wins! All opponent ships destroyed!",
+                            message=(
+                                f"Player {request.player_id} wins!"
+                                f" All opponent ships destroyed!"
+                            ),
                             action="game_ended",
                             data={
                                 "winner": str(request.player_id),
@@ -466,11 +475,17 @@ class GameService:
 
                         for player_id in game.players:
                             if self.conn_manager.is_player_connected(player_id):
-                                await self.conn_manager.send_to_player(player_id, victory_msg.to_dict())
+                                await self.conn_manager.send_to_player(
+                                    player_id,
+                                    victory_msg.to_dict()
+                                )
 
                         return StandardResponse(
                             status="game_over",
-                            message=f"Player {request.player_id} wins! All opponent ships destroyed!",
+                            message=(
+                                f"Player {request.player_id} wins!"
+                                f" All opponent ships destroyed!"
+                            ),
                             action="shoot_result",
                             data={
                                 "result": "hit",
@@ -503,12 +518,16 @@ class GameService:
 
                     # Notify opponent
                     if self.conn_manager.is_player_connected(opponent_id):
-                        await self.conn_manager.send_to_player(opponent_id, opponent_notification.to_dict())
+                        await self.conn_manager.send_to_player(
+                            opponent_id, opponent_notification.to_dict()
+                        )
 
                     return StandardResponse(
                         status="hit",
-                        message=f"the shoot of the player {request.player_id}"
-                        f" hit the target: {request.target}",
+                        message=(
+                            f"the shoot of the player {request.player_id}"
+                            f"hit the target: {request.target}"
+                        ),
                         action="shoot_result",
                         data={
                             "result": "hit",
@@ -538,12 +557,16 @@ class GameService:
 
             # Notify opponent
             if self.conn_manager.is_player_connected(opponent_id):
-                await self.conn_manager.send_to_player(opponent_id, opponent_notification.to_dict())
+                await self.conn_manager.send_to_player(
+                    opponent_id, opponent_notification.to_dict()
+                )
 
             return StandardResponse(
                 status="miss",
-                message=f"the shoot of the player {request.player_id}"
-                f" on target: {request.target}",
+                message=(
+                    f"the shoot of the player {request.player_id}"
+                    f" on target: {request.target}"
+                ),
                 action="shoot_result",
                 data={
                     "result": "miss",
@@ -561,24 +584,30 @@ class GameService:
     async def find_game_session(self, player: FindGameRequest) -> StandardResponse:
         queue_key = "game:queue"
 
-        # 🔍 Check if player is in an active game
         if await self.repository.is_player_in_active_game(player.player_id):
-            game_id_str = await self.repository.redis_client.get(f"player:{player.player_id}:active_game")
+            game_id_str = await self.repository.redis_client.get(
+                f"player:{player.player_id}:active_game"
+            )
             if game_id_str:
                 game = await self.repository.load_game_session(uuid.UUID(game_id_str))
                 if game and game.status != "finished":
-                    # 🔍 Check if opponent is still connected
                     opponent_id = await self.repository.get_opponent_id(
                         uuid.UUID(game_id_str),
                         Player(id=player.player_id)
                     )
 
                     # If opponent exists and is connected, resume the game
-                    if opponent_id and self.conn_manager.is_player_connected(opponent_id):
-                        logger.info(f"Resuming game {game_id_str} for player {player.player_id}")
+                    if opponent_id and self.conn_manager.is_player_connected(
+                        opponent_id
+                    ):
+                        logger.info(
+                            f"Resuming game {game_id_str} for player {player.player_id}"
+                        )
 
                         # Associate player with game in connection manager
-                        self.conn_manager.add_player_to_game(player.player_id, uuid.UUID(game_id_str))
+                        self.conn_manager.add_player_to_game(
+                            player.player_id, uuid.UUID(game_id_str)
+                        )
 
                         return StandardResponse(
                             status="resume_game",
@@ -587,17 +616,23 @@ class GameService:
                             data={
                                 "game_id": game_id_str,
                                 "status": game.status.value,
-                                "current_turn": str(game.current_turn) if game.current_turn else None,
+                                "current_turn": (
+                                    str(
+                                        game.current_turn
+                                    ) if game.current_turn else None
+                                ),
                                 "resume": True
                             },
                         )
                     else:
                         # Opponent is not connected - game is dead
-                        logger.info(f"Opponent {opponent_id} is offline. Clearing dead game for {player.player_id}")
+                        logger.info(
+                            f"Opponent {opponent_id} is offline. "
+                            f"Clearing dead game for {player.player_id}"
+                        )
                         await self.repository.clear_player_active_game(player.player_id)
                         # Fall through to treat as new player
 
-        # 🔍 Check if player is already in queue
         if await self.repository.is_player_in_queue(queue_key, player.player_id):
             return StandardResponse(
                 status="waiting",
@@ -607,7 +642,6 @@ class GameService:
                     "player_id": str(player.player_id)},
             )
 
-        # 🔍 Rest of your existing logic (get opponent, create game, etc.)
         opponent_player_id = await self.repository.get_opponent_from_queue(
             queue_key, player.player_id
         )
@@ -615,10 +649,14 @@ class GameService:
 
         if opponent_player_id:
             await self.repository.pop_from_queue(queue_key, opponent_player_id)
-            logger.info(f"Pairing player {player.player_id} with opponent {opponent_player_id}")
+            logger.info(
+                f"Pairing player {player.player_id} with opponent {opponent_player_id}"
+            )
 
             if opponent_player_id == player.player_id:
-                logger.warning("Opponent is same as current player - returning to queue")
+                logger.warning(
+                    "Opponent is same as current player - returning to queue"
+                )
                 await self.repository.push_to_queue(queue_key, player.player_id)
                 return StandardResponse(
                     status="error",
@@ -643,12 +681,15 @@ class GameService:
 
             try:
                 await self.repository.save_game_to_redis(game_data)
-                await self.repository.set_player_active_game(player.player_id, game_id)
-                await self.repository.set_player_active_game(opponent_player_id, game_id)
+                await self.repository.set_player_active_game(
+                    player.player_id, game_id
+                )
+                await self.repository.set_player_active_game(
+                    opponent_player_id,
+                    game_id
+                )
 
-                # 🔑 Associate both players with the game in connection manager
                 self.conn_manager.add_player_to_game(player.player_id, game_id)
-                # Note: opponent will be associated when they receive their "ready" message
 
             except Exception as e:
                 logger.error(f"Game not saved ERROR: {e}")
@@ -661,7 +702,9 @@ class GameService:
                     data="",
                 )
 
-            def create_player_game_data(game_session: GameSession, player_id: uuid.UUID) -> dict[str, Any]:
+            def create_player_game_data(
+                game_session: GameSession, player_id: uuid.UUID
+            ) -> dict[str, Any]:
                 return {
                     "game_id": str(game_session.game_id),
                     "start_datetime": game_session.start_datetime,
@@ -810,7 +853,9 @@ class GameService:
         # Notify opponent that it's their turn
         turn_notification = StandardResponse(
             status="ok",
-            message=f"Opponent has passed their turn. It's now your turn!",
+            message=(
+                "Opponent has passed their turn. It's now your turn!"
+            ),
             action="confirm_pass_turn",
             data={
                 "currentTurn": str(opponent_id),
@@ -821,7 +866,10 @@ class GameService:
 
         # Send notification to opponent
         if self.conn_manager.is_player_connected(opponent_id):
-            await self.conn_manager.send_to_player(opponent_id, turn_notification.to_dict())
+            await self.conn_manager.send_to_player(
+                opponent_id,
+                turn_notification.to_dict()
+            )
             logger.info(f"Turn passed notification sent to opponent {opponent_id}")
 
         # Return confirmation to the player who passed their turn

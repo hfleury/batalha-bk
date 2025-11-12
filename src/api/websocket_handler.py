@@ -20,6 +20,7 @@ game_repo = GameRedisRepository()
 game_service = GameService(game_repo, conn_manager)
 logger = logging.getLogger(__name__)
 
+
 async def _register_player(
     websocket: WebSocket,
     trace_id: str
@@ -59,19 +60,23 @@ async def _register_player(
 
         logger.info(f"[{trace_id}] Player {player_id} connected and registered")
 
-        # 🔍 ALWAYS check if player is in an active game (whether they send an action or not)
         if await game_repo.is_player_in_active_game(player_id):
-            game_id_str = await game_repo.redis_client.get(f"player:{player_id}:active_game")
+            game_id_str = await game_repo.redis_client.get(
+                f"player:{player_id}:active_game"
+            )
             if game_id_str:
                 game = await game_repo.load_game_session(uuid.UUID(game_id_str))
                 if game and game.status != "finished":
                     # Check if opponent is still connected
-                    opponent_id = await game_repo.get_opponent_id(uuid.UUID(game_id_str), player)
+                    opponent_id = await game_repo.get_opponent_id(
+                        uuid.UUID(game_id_str), player
+                    )
                     if opponent_id and conn_manager.is_player_connected(opponent_id):
                         # Resume the game
-                        conn_manager.add_player_to_game(player_id, uuid.UUID(game_id_str))
+                        conn_manager.add_player_to_game(
+                            player_id, uuid.UUID(game_id_str)
+                        )
 
-                        # 🔔 Notify opponent that player has reconnected
                         reconnection_msg = StandardResponse(
                             status="opponent_reconnected",
                             message="Your opponent has reconnected!",
@@ -79,12 +84,22 @@ async def _register_player(
                             data={
                                 "reconnected_player": str(player_id),
                                 "game_id": game_id_str,
-                                "current_turn": str(game.current_turn) if game.current_turn else None,
+                                "current_turn": (
+                                    str(
+                                        game.current_turn
+                                    ) if game.current_turn else None
+                                ),
                                 "status": game.status
                             }
                         )
-                        await conn_manager.send_to_player(opponent_id, reconnection_msg.to_dict())
-                        logger.info(f"Sent reconnection notification to opponent {opponent_id} for player {player_id}")
+                        await conn_manager.send_to_player(
+                            opponent_id,
+                            reconnection_msg.to_dict()
+                        )
+                        logger.info(
+                            f"Sent reconnection notification to opponent"
+                            f" {opponent_id} for player {player_id}"
+                        )
 
                         resume_response = StandardResponse(
                             status="resume_game",
@@ -93,7 +108,11 @@ async def _register_player(
                             data={
                                 "game_id": game_id_str,
                                 "status": game.status,
-                                "current_turn": str(game.current_turn) if game.current_turn else None,
+                                "current_turn": (
+                                    str(
+                                        game.current_turn
+                                    ) if game.current_turn else None
+                                ),
                                 "your_player_id": str(player_id),
                                 "opponent_id": str(opponent_id),
                                 "opponent_connected": True
@@ -103,7 +122,10 @@ async def _register_player(
                         return player_id, player
                     else:
                         # Opponent is not connected - game is dead
-                        logger.info(f"Opponent {opponent_id} is offline. Clearing dead game for {player_id}")
+                        logger.info(
+                            f"Opponent {opponent_id} is offline."
+                            f" Clearing dead game for {player_id}"
+                        )
                         await game_repo.clear_player_active_game(player_id)
                         # Fall through to handle action or queue
 
@@ -113,11 +135,13 @@ async def _register_player(
             initial_response: StandardResponse = await game_service.handle_action(
                 action, payload, player
             )
-            # If the action was successful and created/joined a game, associate with game
-            if (action == "find_game_session" and
+
+            if (
+                action == "find_game_session" and
                 initial_response.status in ["ready", "resume_game"] and
                 initial_response.data and
-                isinstance(initial_response.data, dict)):
+                isinstance(initial_response.data, dict)
+            ):
 
                 game_id_str = initial_response.data.get("game_id")
                 if game_id_str:
@@ -142,6 +166,7 @@ async def _register_player(
         logger.error(f"[{trace_id}] Unexpected ERROR during registration: {e}")
         return None, None
 
+
 async def _message_loop(
     websocket: WebSocket,
     player: Player
@@ -165,11 +190,14 @@ async def _message_loop(
 
         await websocket.send_json(handler_response.to_dict())
 
+
 async def notify_opponent_disconnection(disconnected_player_id: uuid.UUID) -> None:
     """Notify the opponent that their player has disconnected."""
     try:
         # Find active game for the disconnected player
-        game_id_str = await game_repo.redis_client.get(f"player:{disconnected_player_id}:active_game")
+        game_id_str = await game_repo.redis_client.get(
+            f"player:{disconnected_player_id}:active_game"
+        )
         if not game_id_str:
             return
 
@@ -188,7 +216,7 @@ async def notify_opponent_disconnection(disconnected_player_id: uuid.UUID) -> No
         if opponent_id and conn_manager.is_player_connected(opponent_id):
             disconnect_msg = StandardResponse(
                 status="opponent_disconnected",
-                message="Your opponent has disconnected. They can reconnect to continue the game.",
+                message="Your opponent has disconnected.",
                 action="opponent_disconnected",
                 data={
                     "disconnected_player": str(disconnected_player_id),
@@ -198,7 +226,10 @@ async def notify_opponent_disconnection(disconnected_player_id: uuid.UUID) -> No
                 }
             )
             await conn_manager.send_to_player(opponent_id, disconnect_msg.to_dict())
-            logger.info(f"Sent disconnection notification to opponent {opponent_id} for player {disconnected_player_id}")
+            logger.info(
+                f"Sent disconnection notification to opponent"
+                f" {opponent_id} for player {disconnected_player_id}"
+            )
 
             # TODO move to game_repo_impl and GameService that is the layer responsabel
             # to talk with repo.
@@ -211,6 +242,7 @@ async def notify_opponent_disconnection(disconnected_player_id: uuid.UUID) -> No
 
     except Exception as e:
         logger.error(f"Error notifying opponent of disconnection: {e}")
+
 
 @router.websocket("/ws/connect")
 async def websocket_connection(websocket: WebSocket) -> None:

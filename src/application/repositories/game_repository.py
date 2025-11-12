@@ -129,7 +129,11 @@ class GameRepository(ABC):
         pass
 
     @abstractmethod
-    async def set_player_active_game(self, player_id: uuid.UUID, game_id: uuid.UUID) -> None:
+    async def set_player_active_game(
+        self,
+        player_id: uuid.UUID,
+        game_id: uuid.UUID
+    ) -> None:
         """Set the active game for a player."""
         pass
 

@@ -112,7 +112,7 @@ class ConnectionManager:
 
     def is_player_connected(self, player_id: uuid.UUID) -> bool:
         """Check if a player is currently connected via WebSocket."""
-        return player_id in self.connected_players\
+        return player_id in self.connected_players
 
     def get_player_game(self, player_id: uuid.UUID) -> uuid.UUID | None:
         """Get the game ID that a connected player is currently in."""

@@ -253,9 +253,15 @@ class GameRedisRepository(GameRepository):
             logger.error(f"Error checking queue membership: {e}")
             return False
 
-    async def set_player_active_game(self, player_id: uuid.UUID, game_id: uuid.UUID) -> None:
+    async def set_player_active_game(
+        self,
+        player_id: uuid.UUID,
+        game_id: uuid.UUID
+    ) -> None:
         """Set the active game for a player."""
-        logger.debug(f"[DEBUG] set_player_active_game called with {player_id}, {game_id}")
+        logger.debug(
+            f"[DEBUG] set_player_active_game called with {player_id}, {game_id}"
+        )
         await self.redis_client.set(
             f"player:{player_id}:active_game",
             str(game_id),
