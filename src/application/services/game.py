@@ -483,7 +483,7 @@ class GameService:
                         )
 
                     # Regular hit - continue game
-                    game.current_turn = self._get_next_player(game, request.player_id)
+                    # game.current_turn = self._get_next_player(game, request.player_id)
                     await self.repository.save_game_to_redis(game)
                     logger.debug("BEFORE SEND HIT")
 
@@ -520,7 +520,7 @@ class GameService:
                     )
 
             # Miss - continue game
-            game.current_turn = self._get_next_player(game, request.player_id)
+            # game.current_turn = self._get_next_player(game, request.player_id)
             await self.repository.save_game_to_redis(game)
             logger.debug("MISS THE SHOOT")
 
@@ -780,7 +780,8 @@ class GameService:
                 data="",
             )
 
-        # Verify that the requesting player is the one whose turn it currently is
+        # Verify that the requesting player
+        # is the one whose turn it currently is
         if pass_turn.player_id != game.current_turn:
             return StandardResponse(
                 status="error",
@@ -790,7 +791,10 @@ class GameService:
             )
 
         # Get the opponent
-        opponent_id = await self.repository.get_opponent_id(pass_turn.game_id, Player(id=pass_turn.player_id))
+        opponent_id = await self.repository.get_opponent_id(
+            pass_turn.game_id,
+            Player(id=pass_turn.player_id)
+        )
         if not opponent_id:
             return StandardResponse(
                 status="error",
