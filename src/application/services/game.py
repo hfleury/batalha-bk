@@ -878,7 +878,7 @@ class GameService:
             message="Turn passed successfully",
             action="confirm_pass_turn",
             data={
-                "new_turn_player": str(opponent_id),
+                "currentTurn": str(opponent_id),
                 "game_id": str(pass_turn.game_id)
             },
         )
