@@ -56,7 +56,7 @@ class GameRedisRepository(GameRepository):
             "placed_at": datetime.utcnow().isoformat()
         })  # type: ignore[misc]
 
-        await self.redis_client.expire(key, 86400)
+        await self.redis_client.expire(key, 3600)
 
     async def get_player_board(
         self, game_id: uuid.UUID, player_id: uuid.UUID
@@ -153,7 +153,7 @@ class GameRedisRepository(GameRepository):
         logger.debug(f"Game JSON: {game_json}")
 
         try:
-            await self.redis_client.set(key, game_json, ex=86400)  # 24h TTL
+            await self.redis_client.set(key, game_json, ex=3600)  # 1h TTL
         except Exception as e:
             logger.error(f"Failed to save game to Redis: {e}")
             raise
@@ -237,7 +237,11 @@ class GameRedisRepository(GameRepository):
     async def is_player_in_queue(self, queue_name: str, player_id: uuid.UUID) -> bool:
         """Check if player is already in the matchmaking queue."""
         try:
-            players = await self.redis_client.lrange(queue_name, 0, -1)
+            players = await self.redis_client.lrange(
+                queue_name,
+                0,
+                -1
+            )  # type: ignore[misc]
             player_str = str(player_id)
             for raw_data in players:
                 if isinstance(raw_data, bytes):
@@ -265,9 +269,24 @@ class GameRedisRepository(GameRepository):
         await self.redis_client.set(
             f"player:{player_id}:active_game",
             str(game_id),
-            ex=86400  # 24h TTL
+            ex=3600  # 1h TTL
         )
 
     async def clear_player_active_game(self, player_id: uuid.UUID) -> None:
         """Clear the active game for a player."""
         await self.redis_client.delete(f"player:{player_id}:active_game")
+
+    async def get_active_game(self, player_id: uuid.UUID) -> str:
+        """Get the game id as string from using the active_game key
+
+        Args:
+            player_id (uuid.UUID): The uuid of the player
+
+        Returns:
+            str: The game id as a string
+        """
+        game_id_str = await self.redis_client.get(f"player:{player_id}:active_game")
+        if not game_id_str:
+            return ""
+
+        return game_id_str

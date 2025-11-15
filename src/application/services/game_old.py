@@ -5,7 +5,6 @@ import time
 import uuid
 import random
 from typing import Any, List
-from dataclasses import dataclass
 
 from pydantic import ValidationError
 
@@ -26,40 +25,28 @@ from src.api.v1.schemas.place_ships import (
 )
 from src.api.v1.schemas.player_info import PlayerInfoRequest
 from src.application.ship import parse_ships
-from src.application.builders.response import ResponseBuilder
-from src.domain.game_validator import GameValidator
-from src.application.services.notification_service import (
-    NotificationService,
-    NotificationData,
-)
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class ProcessHitData:
-    """Data class for arguments passed to _process_hit."""
-    game: GameSession
-    request: ShootRequest
-    opponent_id: uuid.UUID
-    ship_id: str
-    positions: list
-
-
 class GameService:
-    """Orchestrates game logic, handling player actions and game state."""
+    """Orchestrates game logic, handling player actions and game state.
+
+    This service acts as a facade for all game-related operations, coordinating
+    between the data repository and the connection manager to manage game flow.
+
+    Attributes:
+        repository: An instance of a GameRepository for data persistence.
+        conn_manager: An instance of a ConnectionManager for handling player
+        connections.
+    """
 
     def __init__(
-        self,
-        repository: GameRepository,
-        conn_manager: ConnectionManager
+        self, repository: GameRepository, conn_manager: ConnectionManager
     ) -> None:
         """Initializes the GameService."""
         self.repository = repository
         self.conn_manager = conn_manager
-        self.notification_service = NotificationService(conn_manager)
-        self.validator = GameValidator()
-
         self._action_handlers = {
             "place_ships": self._handle_place_ships,
             "start_game": self._handle_start_game,
@@ -72,12 +59,29 @@ class GameService:
     async def handle_action(
         self, action: str, payload: dict[Any, Any], player: Player
     ) -> StandardResponse:
-        """Routes incoming player actions to the appropriate handler method."""
+        """Routes incoming player actions to the appropriate handler method.
+
+        This method acts as a dispatcher, validating the payload for a given
+        action and calling the corresponding service method.
+
+        Args:
+            action: The action requested by the player (e.g., 'place_ships').
+            payload: The data associated with the action.
+            player: The player who initiated the action.
+
+        Returns:
+            A StandardResponse object with the result of the action.
+        """
         handler = self._action_handlers.get(action)
         if handler:
             return await handler(action, payload, player)
 
-        return ResponseBuilder.error(f"Unknown action: {action}", f"error_{action}")
+        return StandardResponse(
+            status="error",
+            message=f"Unknown action: {action}",
+            action=f"error_{action}",
+            data="",
+        )
 
     async def _handle_place_ships(
         self, action: str, payload: dict[Any, Any], player: Player
@@ -195,7 +199,15 @@ class GameService:
     async def place_ships(
         self, request: ShipPlacementRequest, player: Player
     ) -> StandardResponse:
-        """Handles the logic for a player to place their ships on the board."""
+        """Handles the logic for a player to place their ships on the board.
+
+        Args:
+            request: The validated request containing ship placement data.
+            player: The player placing the ships.
+
+        Returns:
+            A StandardResponse indicating the outcome of the operation.
+        """
         game_id: str = request.game_id
         game_id_uuid: uuid.UUID = uuid.UUID(game_id)
         try:
@@ -291,7 +303,17 @@ class GameService:
             )
 
     async def start_game(self, request: StartGameRequest) -> StandardResponse:
-        """Initializes a game by setting up the boards for all players."""
+        """Initializes a game by setting up the boards for all players.
+
+        Note: This is likely a legacy or administrative action. Game creation
+        is typically handled by `find_game_session`.
+
+        Args:
+            request: The validated request containing game and player ship data.
+
+        Returns:
+            A StandardResponse indicating the outcome of the operation.
+        """
         game_id = request.game_id
         players_data = request.players
 
@@ -347,7 +369,14 @@ class GameService:
         )
 
     async def get_game_info(self, request: PlayerInfoRequest) -> StandardResponse:
-        """Retrieves the board information for a specific player in a game."""
+        """Retrieves the board information for a specific player in a game.
+
+        Args:
+            request: The validated request containing the game and player IDs.
+
+        Returns:
+            A StandardResponse containing the player's board data.
+        """
         if not request.game_id or not request.player_id:
             return StandardResponse(
                 status="error",
@@ -373,100 +402,140 @@ class GameService:
         return rtn_player_info
 
     async def shoot(self, request: ShootRequest) -> StandardResponse:
-        """Handles a player's attempt to shoot at an opponent's board."""
+        """Handles a player's attempt to shoot at an opponent's board.
+
+        Args:
+            request: The validated request containing game, player, and target info.
+
+        Returns:
+            A StandardResponse indicating whether the shot was a hit or miss.
+        """
         logger.debug(f"INSIDE THE SHOOT FUNCTION {request}")
 
         game = await self.repository.load_game_session(request.game_id)
+        logger.debug(f"INSIDE THE SHOOT {game}")
 
-        if game is None:
-            return ResponseBuilder.error("Game not found", "resp_shoot")
+        if not game:
+            return StandardResponse(
+                status="error",
+                message="Game not found",
+                action="resp_shoot",
+                data="",
+            )
 
-        validation_error = self.validator.validate_shoot(game, str(request.player_id))
-        if validation_error:
-            return validation_error
+        validation_response = await self._validate_shoot(game, request)
+        if validation_response:
+            return validation_response
 
         # Get opponent info
-        opponent_id = await self.repository.get_opponent_id(
-            request.game_id,
-            Player(id=request.player_id)
-        )
+        shooter = Player(id=request.player_id)
+        opponent_id = await self.repository.get_opponent_id(request.game_id, shooter)
         if opponent_id is None:
             logger.info(f"No opponent found for game_id: {request.game_id}")
-            return ResponseBuilder.error("No opponent found", "shoot_result")
+            return StandardResponse(
+                status="error",
+                message="No opponent found",
+                action="shoot_result",
+                data="",
+            )
 
         opponent_board = await self.repository.get_player_board(
             request.game_id,
             opponent_id
         )
         if not opponent_board:
-            return ResponseBuilder.error(
-                f"Opponent {opponent_id} board not found "
-                f"for game {request.game_id}",
-                "shoot_result"
+            return StandardResponse(
+                status="error",
+                message=(
+                    f"Opponent {opponent_id} board not found"
+                    f" for game {request.game_id}"
+                ),
+                action="shoot_result",
+                data="",
             )
 
         # Process the shot
         for ship_id, positions in opponent_board.items():
             if request.target in positions:
-                # Create the dataclass instance
-                hit_data = ProcessHitData(
-                    game=game,
-                    request=request,
-                    opponent_id=opponent_id,
-                    ship_id=ship_id,
-                    positions=positions
+                return await self._process_hit(
+                    game,
+                    request,
+                    opponent_id,
+                    ship_id,
+                    positions
                 )
-                return await self._process_hit(hit_data)
 
         # It's a miss
         return await self._process_miss(game, request, opponent_id)
 
+    async def _validate_shoot(
+        self,
+        game: GameSession,
+        request: ShootRequest
+    ) -> StandardResponse | None:
+        """Validate shoot request and return error response if invalid."""
+        if game.status != "in_progress":
+            return StandardResponse(
+                status="error",
+                message="Game is not active",
+                action="shoot_result",
+                data="",
+            )
+
+        if request.player_id != game.current_turn:
+            return StandardResponse(
+                status="error",
+                message="It's not your turn",
+                action="shoot_result",
+                data="",
+            )
+
+        return None
+
     async def _process_hit(
         self,
-        hit_data: ProcessHitData
+        game: GameSession,
+        request: ShootRequest,
+        opponent_id: uuid.UUID,
+        ship_id: str,
+        positions: list
     ) -> StandardResponse:
         """Process a hit on opponent's ship."""
         await self.repository.save_hit(
-            hit_data.request.game_id,
-            hit_data.opponent_id,
-            hit_data.ship_id,
-            hit_data.request.target
+            request.game_id,
+            opponent_id,
+            ship_id,
+            request.target
         )
-        hits = await self.repository.get_player_hits(
-            hit_data.request.game_id,
-            hit_data.opponent_id
-        )
-        is_sunk = set(hits.get(hit_data.ship_id, [])) == set(hit_data.positions)
+        hits = await self.repository.get_player_hits(request.game_id, opponent_id)
+        is_sunk = set(hits.get(ship_id, [])) == set(positions)
 
         # Check if all ships are sunk
-        if await self._check_all_ships_sunk(hit_data.game, hit_data.opponent_id):
-            return await self._process_game_over(hit_data.game, hit_data.request)
+        all_ships_sunk = await self._check_all_ships_sunk(game, opponent_id)
+
+        if all_ships_sunk:
+            return await self._process_game_over(game, request)
 
         # Regular hit - continue game
-        await self.repository.save_game_to_redis(hit_data.game)
+        await self.repository.save_game_to_redis(game)
         logger.debug("BEFORE SEND HIT")
 
-        notification_data = NotificationData(
-            opponent_id=str(hit_data.opponent_id),
-            target=hit_data.request.target,
-            request_player_id=str(hit_data.request.player_id),
-            current_turn=str(hit_data.game.current_turn),
-            ship_id=hit_data.ship_id,
-            is_sunk=is_sunk
-        )
-        await self.notification_service.notify_opponent_hit(notification_data)
+        await self._notify_opponent_of_hit(opponent_id, request, ship_id, is_sunk, game)
 
-        return ResponseBuilder.success(
-            f"the shoot of the player {hit_data.request.player_id} "
-            f"hit the target: {hit_data.request.target}",
-            "shoot_result",
-            {
+        return StandardResponse(
+            status="hit",
+            message=(
+                f"the shoot of the player {request.player_id}"
+                f" hit the target: {request.target}"
+            ),
+            action="shoot_result",
+            data={
                 "result": "hit",
-                "cell": hit_data.request.target,
-                "ship_id": hit_data.ship_id,
+                "cell": request.target,
+                "ship_id": ship_id,
                 "sunk": is_sunk,
-                "player_turn": str(hit_data.game.current_turn),
-            }
+                "player_turn": str(game.current_turn),
+            },
         )
 
     async def _process_miss(
@@ -479,23 +548,36 @@ class GameService:
         await self.repository.save_game_to_redis(game)
         logger.debug("MISS THE SHOOT")
 
-        notification_data = NotificationData(
-            opponent_id=str(opponent_id),
-            target=request.target,
-            request_player_id=str(request.player_id),
-            current_turn=str(game.current_turn)
+        opponent_notification = StandardResponse(
+            status="miss",
+            message=f"Opponent shot missed at {request.target}",
+            action="enemy_shoot",
+            data={
+                "result": "miss",
+                "cell": request.target,
+                "opponent_turn": str(request.player_id),
+                "your_turn_next": str(game.current_turn) == str(opponent_id)
+            }
         )
-        await self.notification_service.notify_opponent_miss(notification_data)
 
-        return ResponseBuilder.success(
-            f"the shoot of the player {request.player_id} "
-            f"on target: {request.target}",
-            "shoot_result",
-            {
+        if self.conn_manager.is_player_connected(opponent_id):
+            await self.conn_manager.send_to_player(
+                opponent_id,
+                opponent_notification.to_dict()
+            )
+
+        return StandardResponse(
+            status="miss",
+            message=(
+                f"the shoot of the player {request.player_id}"
+                f" on target: {request.target}"
+            ),
+            action="shoot_result",
+            data={
                 "result": "miss",
                 "cell": request.target,
                 "player_turn": str(game.current_turn),
-            }
+            },
         )
 
     async def _check_all_ships_sunk(
@@ -530,23 +612,64 @@ class GameService:
         await self.repository.save_game_to_redis(game)
         await self.end_game(game.game_id)
 
-        await self.notification_service.notify_victory(game, str(request.player_id))
+        victory_msg = StandardResponse(
+            status="game_over",
+            message=f"Player {request.player_id} wins! All opponent ships destroyed!",
+            action="game_ended",
+            data={
+                "winner": str(request.player_id),
+                "game_id": str(game.game_id)
+            }
+        )
 
-        return ResponseBuilder.success(
-            f"Player {request.player_id} wins! All opponent ships destroyed!",
-            "shoot_result",
-            {
+        for player_id in game.players:
+            if self.conn_manager.is_player_connected(player_id):
+                await self.conn_manager.send_to_player(player_id, victory_msg.to_dict())
+
+        return StandardResponse(
+            status="game_over",
+            message=f"Player {request.player_id} wins! All opponent ships destroyed!",
+            action="shoot_result",
+            data={
                 "result": "hit",
                 "cell": request.target,
                 "ship_id": request.target,
                 "sunk": True,
                 "game_over": True,
                 "winner": str(request.player_id)
+            },
+        )
+
+    async def _notify_opponent_of_hit(
+        self,
+        opponent_id: uuid.UUID,
+        request: ShootRequest,
+        ship_id: str,
+        is_sunk: bool,
+        game: GameSession
+    ) -> None:
+        """Notify opponent about a hit."""
+        opponent_notification = StandardResponse(
+            status="hit",
+            message=f"Opponent shot hit your ship at {request.target}!",
+            action="enemy_shoot",
+            data={
+                "result": "hit",
+                "cell": request.target,
+                "ship_id": ship_id,
+                "sunk": is_sunk,
+                "opponent_turn": str(request.player_id),
+                "your_turn_next": str(game.current_turn) == str(opponent_id)
             }
         )
 
+        if self.conn_manager.is_player_connected(opponent_id):
+            await self.conn_manager.send_to_player(
+                opponent_id,
+                opponent_notification.to_dict()
+            )
+
     async def find_game_session(self, player: FindGameRequest) -> StandardResponse:
-        """Find or create a game session for the player."""
         queue_key = "game:queue"
 
         if await self.repository.is_player_in_active_game(player.player_id):
@@ -706,7 +829,15 @@ class GameService:
         )
 
     def _get_next_player(self, game: GameSession, current_id: uuid.UUID) -> uuid.UUID:
-        """Determines the next player's turn in a game."""
+        """Determines the next player's turn in a game.
+
+        Args:
+            game: The current game session.
+            current_id: The UUID of the player who just finished their turn.
+
+        Returns:
+            The UUID of the next player.
+        """
         for pid in game.players:
             if pid != current_id:
                 return pid
@@ -718,7 +849,16 @@ class GameService:
         player1_id: str,
         player2_id: str
     ) -> bool:
-        """Check if both players are ready to start a game."""
+        """Check if both players are ready to start a game
+
+        Args:
+            game_id (str): the game id to check against
+            player1_id (str): One of the players id
+            player2_id (str): the other players id
+
+        Returns:
+            bool: if both players has placed the ships they are ready to start a game
+        """
         player1_ready = await self.repository.exist_player_on_game(game_id, player1_id)
         logger.debug(f"player1_ready {player1_ready}")
         player2_ready = await self.repository.exist_player_on_game(game_id, player2_id)
@@ -739,7 +879,14 @@ class GameService:
             # await self.redis_client.delete(f"game:{game_id}")
 
     async def pass_turn(self, pass_turn: PassTurn) -> StandardResponse:
-        """Handles a player's request to pass their turn to the opponent."""
+        """Handles a player's request to pass their turn to the opponent.
+
+        Args:
+            pass_turn: The validated request containing player and game IDs.
+
+        Returns:
+            A StandardResponse indicating the outcome of the turn pass.
+        """
         logger.debug("INSIDE THE FUNCTION PASS TURN")
         logger.debug(f"INSIDE PASS_TURN FUNCTION {pass_turn}")
 

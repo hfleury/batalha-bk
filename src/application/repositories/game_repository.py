@@ -141,3 +141,15 @@ class GameRepository(ABC):
     async def clear_player_active_game(self, player_id: uuid.UUID) -> None:
         """Clear the active game for a player."""
         pass
+
+    @abstractmethod
+    async def get_active_game(self, player_id: uuid.UUID) -> str:
+        """Get the game id as string from using the active_game key
+
+        Args:
+            player_id (uuid.UUID): The uuid of the player
+
+        Returns:
+            str: The game id as a string
+        """
+        pass

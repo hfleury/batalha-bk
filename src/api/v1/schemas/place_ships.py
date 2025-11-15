@@ -20,8 +20,10 @@ class SerializableModel(BaseModel):
 class ShipDetails(BaseModel):
     """Schema for a single ship's type and positions."""
     type: str = Field(..., description="Type/Name of the ship (e.g., 'Seeker').")
-    positions: List[str] = Field(...,
-                                 description="List ship coordinates ['A1', 'A2']).")
+    positions: List[str] = Field(
+        ...,
+        description="List ship coordinates ['A1', 'A2'])."
+    )
 
 
 class ShipPlacementRequest(BaseModel):
