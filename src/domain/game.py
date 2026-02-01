@@ -21,6 +21,8 @@ class PlayerBoard(BaseModel):
     """Represents a player's board, containing their ship placements."""
 
     board: dict[str, list[str]] = Field(default_factory=dict)
+    fuel: int = 0
+    faction: str | None = None
 
 
 class GameSession(BaseModel):

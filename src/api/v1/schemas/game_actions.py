@@ -21,6 +21,7 @@ class ShootRequest(BaseModel):
     game_id: uuid.UUID
     player_id: uuid.UUID
     target: str
+    ship_type: str
 
     _validate_uuids = field_validator("game_id", "player_id", mode="before")(
         ensure_uuid
@@ -31,6 +32,7 @@ class FindGameRequest(BaseModel):
     """Schema for a player's request to find a game session."""
 
     player_id: uuid.UUID
+    faction: str = "Marines"
     _validate_uuids = field_validator("player_id", mode="before")(ensure_uuid)
 
 

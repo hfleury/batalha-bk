@@ -17,6 +17,7 @@ class Player(BaseModel):
     id: Optional[uuid.UUID] = None
     username: Optional[str] = None
     email: Optional[str] = None
+    faction: Optional[str] = None
     password: Optional[str] = Field(default=None, exclude=True)
 
     @property

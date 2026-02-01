@@ -32,6 +32,7 @@ from src.application.services.notification_service import (
     NotificationService,
     NotificationData,
 )
+from src.domain.factions import get_faction
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +145,7 @@ class GameService:
                 game_id=payload["game_id"],
                 player_id=payload["player_id"],
                 target=payload["target"],
+                ship_type=payload["ship_type"],
             )
         except (KeyError, ValidationError) as e:
             logger.error(f"{action} validation error: {e}")
@@ -161,6 +163,7 @@ class GameService:
         try:
             req_find_game_session = FindGameRequest(
                 player_id=uuid.UUID(payload["player_id"]),
+                faction=payload.get("faction", "Marines")
             )
         except (KeyError, ValidationError) as e:
             logger.error(f"{action} validation error: {e}")
@@ -385,6 +388,31 @@ class GameService:
         if validation_error:
             return validation_error
 
+        # Get Player Board for Faction and Fuel
+        player_board = game.players.get(request.player_id)
+        if not player_board:
+             return ResponseBuilder.error("Player not in game", "shoot_result")
+        
+        faction_name = player_board.faction or "Marines"
+        current_fuel = player_board.fuel
+        faction = get_faction(faction_name)
+        
+        # Verify ship ownership/existence (simple check if key exists in board)
+        # logic: player's ships are also in game.players[player_id].board
+        # But we need to ensure the specific ship type is available/alive if we want to be strict.
+        # The plan didn't specify strict dead-ship check, but let's assume if it exists it's fine for now.
+
+        strategy = faction.get_shoot_strategy(request.ship_type)
+        
+        if current_fuel < strategy.fuel_cost:
+            return ResponseBuilder.error(
+                f"Not enough fuel. Need {strategy.fuel_cost}, have {current_fuel}", 
+                "shoot_result"
+            )
+
+        # Deduct Fuel
+        player_board.fuel -= strategy.fuel_cost
+
         # Get opponent info
         opponent_id = await self.repository.get_opponent_id(
             request.game_id,
@@ -394,32 +422,100 @@ class GameService:
             logger.info(f"No opponent found for game_id: {request.game_id}")
             return ResponseBuilder.error("No opponent found", "shoot_result")
 
-        opponent_board = await self.repository.get_player_board(
+        opponent_board_ships = await self.repository.get_player_board(
             request.game_id,
             opponent_id
         )
-        if not opponent_board:
+        if not opponent_board_ships:
             return ResponseBuilder.error(
                 f"Opponent {opponent_id} board not found "
                 f"for game {request.game_id}",
                 "shoot_result"
             )
 
-        # Process the shot
-        for ship_id, positions in opponent_board.items():
-            if request.target in positions:
-                # Create the dataclass instance
-                hit_data = ProcessHitData(
-                    game=game,
-                    request=request,
-                    opponent_id=opponent_id,
-                    ship_id=ship_id,
-                    positions=positions
-                )
-                return await self._process_hit(hit_data)
+        # Calculate affected coordinates
+        target_cells = strategy.calculate_hits(request.target)
+        hit_details = []
+        
+        game_over = False
+        winner = None
 
-        # It's a miss
-        return await self._process_miss(game, request, opponent_id)
+        for cell in target_cells:
+            # Check for Hit
+            hit_ship_id = None
+            hit_positions = []
+            
+            for ship_id, positions in opponent_board_ships.items():
+                if cell in positions:
+                    hit_ship_id = ship_id
+                    hit_positions = positions
+                    break
+            
+            # Prepare new request object for internal processing if needed, 
+            # or just call internal methods with the specific cell.
+            # We can reuse the request object but modify target.
+            
+            single_shot_request = ShootRequest(
+                game_id=request.game_id,
+                player_id=request.player_id,
+                target=cell,
+                ship_type=request.ship_type
+            )
+
+            if hit_ship_id:
+                 # It's a Hit
+                 hit_data = ProcessHitData(
+                    game=game,
+                    request=single_shot_request,
+                    opponent_id=opponent_id,
+                    ship_id=hit_ship_id,
+                    positions=hit_positions
+                )
+                 # Note: _process_hit saves game info and sends notification.
+                 # We need to be careful about Game being modified in loop (fuel matches).
+                 # _process_hit saves hits to repository.
+                 # It also checks game over.
+                 
+                 resp = await self._process_hit(hit_data)
+                 hit_details.append({
+                     "cell": cell, 
+                     "result": "hit", 
+                     "ship_id": hit_ship_id,
+                     "sunk": resp.data.get("sunk", False)
+                 })
+                 
+                 if resp.data.get("game_over"):
+                     game_over = True
+                     winner = str(request.player_id)
+                     break # Stop processing if game over
+            else:
+                # It's a Miss
+                # _process_miss saves game and notifies
+                await self._process_miss(game, single_shot_request, opponent_id)
+                hit_details.append({"cell": cell, "result": "miss"})
+
+        if game_over:
+             return ResponseBuilder.success(
+                f"Player {request.player_id} wins!",
+                "shoot_result",
+                {
+                    "result": "game_over",
+                    "hits": hit_details,
+                    "game_over": True,
+                    "winner": winner
+                }
+            )
+
+        return ResponseBuilder.success(
+            f"Shot processed. Fuel remaining: {player_board.fuel}",
+            "shoot_result",
+            {
+                "result": "multi_shot",
+                "hits": hit_details,
+                "fuel_remaining": player_board.fuel,
+                "player_turn": str(game.current_turn),
+            }
+        )
 
     async def _process_hit(
         self,
@@ -635,8 +731,8 @@ class GameService:
                 start_datetime=now,
                 end_datetime=0,
                 players={
-                    opponent_player_id: PlayerBoard(),
-                    player.player_id: PlayerBoard(),
+                    opponent_player_id: PlayerBoard(faction="Marines", fuel=100), # Default for opponent from queue (should fetch actual)
+                    player.player_id: PlayerBoard(faction=player.faction, fuel=100),
                 },
                 status=GameStatus.PLACE_SHIP,
             )
@@ -787,6 +883,17 @@ class GameService:
 
         # Switch turn to opponent
         game.current_turn = opponent_id
+
+        # Regenerate Fuel for the player starting their turn (opponent_id)
+        opponent_board = game.players.get(opponent_id)
+        current_fuel = 0
+        if opponent_board:
+            faction_name = opponent_board.faction or "Marines"
+            faction = get_faction(faction_name)
+            opponent_board.fuel = faction.regenerate_fuel(opponent_board.fuel)
+            current_fuel = opponent_board.fuel
+            logger.info(f"Regenerated fuel for {opponent_id}: {opponent_board.fuel}")
+
         await self.repository.save_game_to_redis(game)
 
         # Notify opponent that it's their turn
@@ -798,6 +905,7 @@ class GameService:
             action="confirm_pass_turn",
             data={
                 "currentTurn": str(opponent_id),
+                "fuel": current_fuel,
                 "previous_turn": str(pass_turn.player_id),
                 "game_id": str(pass_turn.game_id)
             }

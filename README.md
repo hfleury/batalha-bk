@@ -57,12 +57,14 @@ This action allows a player to join the matchmaking queue and either start a new
 **How it works:**
 - If another player is already waiting in the queue, a new game session is created and both players are matched.
 - If no opponent is available, the player is added to the queue and waits for another player to join.
+- Players can optionaly specify a `faction` (Marines, Pirates, Winders). Default is Marines.
 
 **Request Example**
 ```json
 {
     "action": "find_game_session",
-    "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc"
+    "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
+    "faction": "Marines"
 }
 ```
 *Note: `player_id` should be a UUID string.*
@@ -105,8 +107,8 @@ This action allows a player to submit their ship placements for a game. The serv
 **How it works:**
 - The player sends a request with the game ID, their player ID, and a list of ships with their positions.
 - The server validates the ship placements.
-- If the placements are valid, the server stores them and responds with success.
-- If the placements are invalid, an error message is returned.
+- If the placements are valid, the server stores them.
+- If both players have placed their ships, the game starts (status `battle_start`).
 
 **Request Example**
 ```json
@@ -115,21 +117,38 @@ This action allows a player to submit their ship placements for a game. The serv
   "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0",
   "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
   "ships": [
-    {"type": "battleship", "positions": ["A1", "A2", "A3", "A4"]},
-    {"type": "destroyer", "positions": ["B1", "B2", "B3"]}
+    {"type": "Battleship", "positions": ["A1", "A2", "A3", "A4"]},
+    {"type": "Destroyer", "positions": ["B1", "B2", "B3"]}
   ]
 }
 ```
 
 **Possible Responses**
 
-- **Success:**
+- **Ships placed (waiting for opponent):**
     ```json
     {
-      "status": "OK",
+      "status": "shipsPlaced",
       "message": "Ships placed for player b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
-      "action": "resp_place_ships",
-      "data": ""
+      "action": "place_ship_response",
+      "data": {
+          "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0",
+          "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc"
+      }
+    }
+    ```
+
+- **Battle Start (Both players ready):**
+    ```json
+    {
+        "status": "battle_start",
+        "message": "Ships placed. Battle starting!",
+        "action": "place_ship_response",
+        "data": {
+            "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0",
+            "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
+            "firstTurn": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc"
+        }
     }
     ```
 
@@ -148,10 +167,10 @@ This action allows a player to submit their ship placements for a game. The serv
 This action allows a player to fire at a target cell on the opponent's board.
 
 **How it works:**
-- The player sends a request with the game ID, their player ID, and the target cell (e.g., "B4").
-- If there is no opponent or the opponent's board is not found, an error is returned.
-- If the target cell matches a ship position, it is recorded as a hit. The response includes whether the ship was sunk.
-- If the target cell does not match any ship, the response indicates a miss.
+- The player sends a request with the game ID, their player ID, the target cell (e.g., "B4"), and the `ship_type` used to shoot.
+- Different ships (based on Faction) have different shooting strategies and fuel costs.
+- If the player has enough fuel, the shot is processed.
+- The outcome (hit, miss, sink) is returned, and fuel is deducted.
 
 **Request Example**
 ```json
@@ -159,7 +178,8 @@ This action allows a player to fire at a target cell on the opponent's board.
   "action": "shoot",
   "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0",
   "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc",
-  "target": "B4"
+  "target": "B4",
+  "ship_type": "Battleship"
 }
 ```
 
@@ -169,13 +189,14 @@ This action allows a player to fire at a target cell on the opponent's board.
     ```json
     {
       "status": "OK",
-      "message": "the shoot of the playerb7e6a1c2-3d4f-4e5a-8b9c-123456789abc hit the target:B4",
-      "action": "resp_shoot",
+      "message": "the shoot of the player ... hit the target:B4",
+      "action": "shoot_result",
       "data": {
-        "status": "hit",
-        "target": "B4",
+        "result": "hit",
+        "cell": "B4",
         "ship_id": "ship_id_2",
-        "sunk": false
+        "sunk": false,
+        "player_turn": "opponent_uuid"
       }
     }
     ```
@@ -184,12 +205,23 @@ This action allows a player to fire at a target cell on the opponent's board.
     ```json
     {
       "status": "OK",
-      "message": "the shoot of the playerb7e6a1c2-3d4f-4e5a-8b9c-123456789abc on target:B4",
-      "action": "resp_shoot",
+      "message": "the shoot of the player ... on target:B4",
+      "action": "shoot_result",
       "data": {
-        "status": "miss",
-        "target": "B4"
+        "result": "miss",
+        "cell": "B4",
+        "player_turn": "opponent_uuid"
       }
+    }
+    ```
+
+- **Not enough fuel:**
+    ```json
+    {
+      "status": "error",
+      "message": "Not enough fuel. Need 10, have 5",
+      "action": "shoot_result",
+      "data": ""
     }
     ```
 
@@ -198,7 +230,7 @@ This action allows a player to fire at a target cell on the opponent's board.
     {
       "status": "error",
       "message": "No opponent found",
-      "action": "resp_shoot",
+      "action": "shoot_result",
       "data": ""
     }
     ```
@@ -207,11 +239,36 @@ This action allows a player to fire at a target cell on the opponent's board.
     ```json
     {
       "status": "error",
-      "message": "Opponentb7e6a1c2-3d4f-4e5a-8b9c-123456789abc board not found of game:e2c56db5-dffb-48d2-b060-d0f5a71096e0",
-      "action": "resp_shoot",
+      "message": "Opponent ... board not found ...",
+      "action": "shoot_result",
       "data": ""
     }
     ```
+
+### Pass Turn
+Allows a player to pass their turn to the opponent.
+
+**Request Example**
+```json
+{
+  "action": "pass_turn",
+  "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0",
+  "player_id": "b7e6a1c2-3d4f-4e5a-8b9c-123456789abc"
+}
+```
+
+**Response**
+```json
+{
+    "status": "ok",
+    "message": "Turn passed successfully",
+    "action": "confirm_pass_turn",
+    "data": {
+        "currentTurn": "opponent_uuid",
+        "game_id": "e2c56db5-dffb-48d2-b060-d0f5a71096e0"
+    }
+}
+```
 
 
 ### Get game info
